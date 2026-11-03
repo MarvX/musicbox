@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MUSIC BOX — V8.5.5 Lyrics Relay & DJ Recovery</title>
+<title>MUSIC BOX — V8.5.6 Lyrics Relay & DJ Recovery</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -4261,7 +4261,7 @@ init();
       stores[name]=rows.map(row=>({key:packData(row.key,assets,seen),value:packData(row.value,assets,seen)}));
     }
     const manifest={
-      format:'MUSIC_BOX_BACKUP',formatVersion:1,appVersion:'V8.5.5 Lyrics Relay & DJ Recovery',createdAt:new Date().toISOString(),
+      format:'MUSIC_BOX_BACKUP',formatVersion:1,appVersion:'V8.5.6 Lyrics Relay & DJ Recovery',createdAt:new Date().toISOString(),
       origin:location.origin,dbName:snapshot.db.name,dbVersion:snapshot.db.version,
       stores,localStorage:snapshot.local,
       assets:assets.map(a=>({id:a.id,size:a.size,type:a.type,name:a.name,lastModified:a.lastModified})),
@@ -4889,7 +4889,7 @@ init();
 (function musicBoxLyrics85(){
   'use strict';
   const $ = id => document.getElementById(id);
-  document.title='MUSIC BOX — V8.5.5 Lyrics Relay & DJ Recovery';
+  document.title='MUSIC BOX — V8.5.6 Lyrics Relay & DJ Recovery';
   const fa = () => typeof LANG !== 'undefined' && LANG !== 'en';
   const words = {
     fa:{toggle:'♫ نمایش متن آهنگ',hide:'بستن متن',none:'هنوز آهنگی برای نمایش متن انتخاب نشده.',loading:'در حال پیدا کردن متن آهنگ در LRCLIB…',notFound:'متنی برای این آهنگ پیدا نشد. می‌توانی متن را دستی وارد کنی.',exact:'متن آهنگ پیدا شد و ذخیره شد.',choose:'چند نسخه پیدا شد؛ نسخه‌ی درست را انتخاب کن.',network:'مرورگر نتوانست از LRCLIB پاسخ شبکه‌ای دریافت کند. برای دسترسی پایدار، مسیر واسط هم‌مبدأ Vercel را فعال کن.', timeout:'پاسخ LRCLIB در مهلت تعیین‌شده نرسید. اتصال را بررسی کن و دوباره تلاش کن.', testing:'در حال آزمایش اتصال به LRCLIB…', connected:'اتصال به LRCLIB برقرار است؛ API پاسخ معتبر داد.',rate:'محدودیت درخواست LRCLIB فعال شده است. لطفاً {0} ثانیه دیگر دوباره تلاش کن.',service:'سرویس LRCLIB موقتاً در دسترس نیست. کمی بعد دوباره تلاش کن.',noMeta:'برای جست‌وجوی دقیق، عنوان و هنرمند آهنگ لازم است.',httpError:'خطای LRCLIB: ',offline:'اتصال اینترنت مرورگر برقرار نیست.',testConnection:'تست اتصال',noLyrics:'این ترک به‌عنوان موسیقی بی‌کلام ثبت شده است.',plain:'متن ساده · بدون زمان‌بندی',synced:'متن هماهنگ با پخش',edit:'ویرایش / واردکردن متن',search:'جست‌وجوی دوباره',save:'ذخیره‌ی متن',cancel:'انصراف',import:'واردکردن فایل LRC / TXT',reset:'بازگشت به متن LRCLIB',saved:'متن اختصاصی ذخیره شد.',resetDone:'متن اختصاصی حذف شد و نسخه‌ی LRCLIB نمایش داده می‌شود.',savedManual:'متن دستی',source:'منبع: LRCLIB',manualSource:'منبع: متن واردشده توسط تو',noLine:'متن همگام برای این آهنگ موجود نیست.',editHelp:'فرمت LRC با زمان‌هایی مثل [00:12.30] برای همگام‌سازی خطی؛ فایل TXT برای متن ساده.',imported:'فایل متن بارگذاری شد. برای ثبت تغییرات، ذخیره را بزن.',needTrack:'ابتدا یک آهنگ از کتابخانه پخش کن.',lrcError:'فایل متن قابل خواندن نیست.',duration:'مدت آهنگ',instrumental:'بی‌کلام',lines:'متن خطی',searchAgain:'تلاش دوباره',savedCache:'از حافظه‌ی محلی',notSynced:'بدون زمان‌بندی',provider:'LRCLIB',chooseOne:'انتخاب این نسخه',close:'بستن',editing:'در حال ویرایش متن',retryWait:'لطفاً بعد از پایان زمان انتظار دوباره جست‌وجو کن.'},
@@ -5062,8 +5062,15 @@ init();
     const abortParent=()=>{try{local.abort();}catch(_){}};
     parent?.signal.addEventListener('abort',abortParent,{once:true});
     const timer=setTimeout(()=>{timedOut=true;try{local.abort();}catch(_){}},14000);
-    const options={method:'GET',mode:'cors',credentials:'omit',cache:'default',redirect:'follow',signal:local.signal};
-    if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/8.5.5 (personal music player)'};
+    // Vercel SSO can protect the same-origin API route. Send the app's own
+    // same-origin session cookie to /api/lrclib, but never send credentials to LRCLIB itself.
+    let credentials='omit';
+    try {
+      const requestOrigin=new URL(url,location.href).origin;
+      if(location.origin && location.origin!=='null' && requestOrigin===location.origin) credentials='same-origin';
+    } catch (_) {}
+    const options={method:'GET',mode:'cors',credentials,cache:'default',redirect:'follow',signal:local.signal};
+    if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/8.5.6 (personal music player)'};
     try{return await fetch(url,options);}
     catch(err){
       if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
