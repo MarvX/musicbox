@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MUSIC BOX — V8.5.5 Lyrics Relay & DJ Recovery</title>
+<title>MUSIC BOX — V8.5.6 Lyrics Relay & DJ Recovery</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -4261,7 +4261,7 @@ init();
       stores[name]=rows.map(row=>({key:packData(row.key,assets,seen),value:packData(row.value,assets,seen)}));
     }
     const manifest={
-      format:'MUSIC_BOX_BACKUP',formatVersion:1,appVersion:'V8.5.5 Lyrics Relay & DJ Recovery',createdAt:new Date().toISOString(),
+      format:'MUSIC_BOX_BACKUP',formatVersion:1,appVersion:'V8.5.6 Lyrics Relay & DJ Recovery',createdAt:new Date().toISOString(),
       origin:location.origin,dbName:snapshot.db.name,dbVersion:snapshot.db.version,
       stores,localStorage:snapshot.local,
       assets:assets.map(a=>({id:a.id,size:a.size,type:a.type,name:a.name,lastModified:a.lastModified})),
@@ -4889,7 +4889,7 @@ init();
 (function musicBoxLyrics85(){
   'use strict';
   const $ = id => document.getElementById(id);
-  document.title='MUSIC BOX — V8.5.5 Lyrics Relay & DJ Recovery';
+  document.title='MUSIC BOX — V8.5.6 Lyrics Relay & DJ Recovery';
   const fa = () => typeof LANG !== 'undefined' && LANG !== 'en';
   const words = {
     fa:{toggle:'♫ نمایش متن آهنگ',hide:'بستن متن',none:'هنوز آهنگی برای نمایش متن انتخاب نشده.',loading:'در حال پیدا کردن متن آهنگ در LRCLIB…',notFound:'متنی برای این آهنگ پیدا نشد. می‌توانی متن را دستی وارد کنی.',exact:'متن آهنگ پیدا شد و ذخیره شد.',choose:'چند نسخه پیدا شد؛ نسخه‌ی درست را انتخاب کن.',network:'مرورگر نتوانست از LRCLIB پاسخ شبکه‌ای دریافت کند. برای دسترسی پایدار، مسیر واسط هم‌مبدأ Vercel را فعال کن.', timeout:'پاسخ LRCLIB در مهلت تعیین‌شده نرسید. اتصال را بررسی کن و دوباره تلاش کن.', testing:'در حال آزمایش اتصال به LRCLIB…', connected:'اتصال به LRCLIB برقرار است؛ API پاسخ معتبر داد.',rate:'محدودیت درخواست LRCLIB فعال شده است. لطفاً {0} ثانیه دیگر دوباره تلاش کن.',service:'سرویس LRCLIB موقتاً در دسترس نیست. کمی بعد دوباره تلاش کن.',noMeta:'برای جست‌وجوی دقیق، عنوان و هنرمند آهنگ لازم است.',httpError:'خطای LRCLIB: ',offline:'اتصال اینترنت مرورگر برقرار نیست.',testConnection:'تست اتصال',noLyrics:'این ترک به‌عنوان موسیقی بی‌کلام ثبت شده است.',plain:'متن ساده · بدون زمان‌بندی',synced:'متن هماهنگ با پخش',edit:'ویرایش / واردکردن متن',search:'جست‌وجوی دوباره',save:'ذخیره‌ی متن',cancel:'انصراف',import:'واردکردن فایل LRC / TXT',reset:'بازگشت به متن LRCLIB',saved:'متن اختصاصی ذخیره شد.',resetDone:'متن اختصاصی حذف شد و نسخه‌ی LRCLIB نمایش داده می‌شود.',savedManual:'متن دستی',source:'منبع: LRCLIB',manualSource:'منبع: متن واردشده توسط تو',noLine:'متن همگام برای این آهنگ موجود نیست.',editHelp:'فرمت LRC با زمان‌هایی مثل [00:12.30] برای همگام‌سازی خطی؛ فایل TXT برای متن ساده.',imported:'فایل متن بارگذاری شد. برای ثبت تغییرات، ذخیره را بزن.',needTrack:'ابتدا یک آهنگ از کتابخانه پخش کن.',lrcError:'فایل متن قابل خواندن نیست.',duration:'مدت آهنگ',instrumental:'بی‌کلام',lines:'متن خطی',searchAgain:'تلاش دوباره',savedCache:'از حافظه‌ی محلی',notSynced:'بدون زمان‌بندی',provider:'LRCLIB',chooseOne:'انتخاب این نسخه',close:'بستن',editing:'در حال ویرایش متن',retryWait:'لطفاً بعد از پایان زمان انتظار دوباره جست‌وجو کن.'},
@@ -4938,6 +4938,8 @@ init();
   let lastRequestAt = 0;
   const attempted = new Set();
   const lyricsCache = new Map();
+  let activeLookupSeq = null;
+  let connectionTestId = 0;
 
   const text = (id,value) => { const el=$(id); if(el) el.textContent=value??''; };
   const norm = value => String(value||'').toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -5053,25 +5055,32 @@ init();
     }catch(_){return null;}
   }
   async function waitThrottle(){const wait=Math.max(0,300-(Date.now()-lastRequestAt));if(wait)await new Promise(r=>setTimeout(r,wait));lastRequestAt=Date.now();}
-  async function fetchLrclibAttempt(url,seq,parentController,identifyClient=true){
+  async function fetchLrclibAttempt(url,seq,parentController,identifyClient=true,isCurrent=()=>seq===currentRequestId){
     const parent=parentController;
-    if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+    if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
     await waitThrottle();
-    if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+    if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
     const local=new AbortController();let timedOut=false;
     const abortParent=()=>{try{local.abort();}catch(_){}};
     parent?.signal.addEventListener('abort',abortParent,{once:true});
     const timer=setTimeout(()=>{timedOut=true;try{local.abort();}catch(_){}},14000);
-    const options={method:'GET',mode:'cors',credentials:'omit',cache:'default',redirect:'follow',signal:local.signal};
-    if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/8.5.5 (personal music player)'};
+    // Vercel SSO can protect the same-origin API route. Send the app's own
+    // same-origin session cookie to /api/lrclib, but never send credentials to LRCLIB itself.
+    let credentials='omit';
+    try {
+      const requestOrigin=new URL(url,location.href).origin;
+      if(location.origin && location.origin!=='null' && requestOrigin===location.origin) credentials='same-origin';
+    } catch (_) {}
+    const options={method:'GET',mode:'cors',credentials,cache:'default',redirect:'follow',signal:local.signal};
+    if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/8.5.6 (personal music player)'};
     try{return await fetch(url,options);}
     catch(err){
-      if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+      if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
       if(timedOut)throw new Error(w('timeout'));
       throw err;
     }finally{clearTimeout(timer);parent?.signal.removeEventListener('abort',abortParent);}
   }
-  async function requestJson(url,seq,parentController=controller){
+  async function requestJson(url,seq,parentController=controller,isCurrent=()=>seq===currentRequestId){
     if(Date.now()<retryAt){const seconds=Math.ceil((retryAt-Date.now())/1000);throw new Error(w('rate').replace('{0}',String(seconds)));}
     const parent=parentController;let response=null,proxyFailure=null,firstDirectError=null;
     const proxyUrl=makeLrclibProxyUrl(url);
@@ -5079,7 +5088,7 @@ init();
     // This avoids browser-to-LRCLIB DNS, TLS, CORS and extension restrictions.
     if(proxyUrl){
       try{
-        const proxied=await fetchLrclibAttempt(proxyUrl,seq,parent,false);
+        const proxied=await fetchLrclibAttempt(proxyUrl,seq,parent,false,isCurrent);
         const isOurProxy=proxied.headers.get('x-music-box-lrclib-proxy')==='1';
         if(isOurProxy && (proxied.ok||proxied.status===404||proxied.status===429||proxied.status===503)){
           response=proxied;lastLrclibTransport='vercel-relay';
@@ -5094,12 +5103,12 @@ init();
     }
     if(!response){
       try{
-        response=await fetchLrclibAttempt(url,seq,parent,true);lastLrclibTransport='direct';
+        response=await fetchLrclibAttempt(url,seq,parent,true,isCurrent);lastLrclibTransport='direct';
       }catch(err){
         if(err?.name==='AbortError')throw err;
         firstDirectError=err;
         try{
-          response=await fetchLrclibAttempt(url,seq,parent,false);lastLrclibTransport='direct-plain';
+          response=await fetchLrclibAttempt(url,seq,parent,false,isCurrent);lastLrclibTransport='direct-plain';
         }catch(secondError){
           if(secondError?.name==='AbortError')throw secondError;
           const online=typeof navigator==='undefined'||navigator.onLine!==false;
@@ -5114,7 +5123,7 @@ init();
         }
       }
     }
-    if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+    if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
     if(response.status===404)return null;
     if(response.status===429||response.status===503){
       const sec=Math.max(1,parseInt(response.headers.get('Retry-After')||'5',10)||5);retryAt=Date.now()+sec*1000;
@@ -5130,16 +5139,20 @@ init();
   }
   async function testConnection(){
     const btn=$('mbLyricsTest');if(btn)btn.disabled=true;
-    try{controller?.abort();}catch(_){}
-    const seq=++currentRequestId;const testController=new AbortController();
-    setStatus(w('testing'));
+    // Connection checks are isolated from lyric lookups: they must never abort
+    // the active track request or advance its request sequence.
+    const testId=++connectionTestId;
+    const seq=currentRequestId;
+    const testController=new AbortController();
+    const isCurrent=()=>testId===connectionTestId;
+    if(activeLookupSeq===null)setStatus(w('testing'));
     try{
-      const result=await requestJson('https://lrclib.net/api/search?q=still%20alive',seq,testController);
-      if(seq!==currentRequestId)return;
+      const result=await requestJson('https://lrclib.net/api/search?q=still%20alive',seq,testController,isCurrent);
+      if(!isCurrent())return;
       if(!Array.isArray(result))throw new Error(w('httpError')+'200 · Invalid response');
       const via=lastLrclibTransport==='vercel-relay'?' · Vercel relay':' · Direct API';
-      setStatus(w('connected')+via,'success');
-    }catch(err){if(err?.name!=='AbortError'&&seq===currentRequestId)setStatus(err?.message||w('network'),'error');}
+      if(activeLookupSeq===null)setStatus(w('connected')+via,'success');
+    }catch(err){if(err?.name!=='AbortError'&&isCurrent()&&activeLookupSeq===null)setStatus(err?.message||w('network'),'error');}
     finally{if(btn)btn.disabled=false;}
   }
   function normalizeRecord(record,lookupKey=null){
@@ -5156,6 +5169,7 @@ init();
     if(!force&&attempted.has(sid))return;
     if(force)attempted.delete(sid);attempted.add(sid);
     const seq=++currentRequestId;try{controller?.abort();}catch(_){} controller=new AbortController();
+    activeLookupSeq=seq;
     setStatus(w('loading')); if(opened)renderPanel();
     try{
       const tags=await identifyTags(it);if(!tags.title||!tags.artist){
@@ -5186,7 +5200,16 @@ init();
       }
       if(candidates.length){it.lyrics={...(it.lyrics||{}),lookupKey,lookupStatus:'choose',lastCandidates:candidates.slice(0,20).map(c=>normalizeRecord(c,lookupKey))};await persist(it);if(String(currentId)===sid)showCandidates(it.lyrics.lastCandidates);}
       else{it.lyrics={...(it.lyrics||{}),lookupStatus:'not-found',lastLookupAt:new Date().toISOString()};await persist(it);if(String(currentId)===sid){renderPanel();setStatus(w('notFound'));}}
-    }catch(err){if(err?.name==='AbortError')return;if(seq!==currentRequestId)return;const msg=err?.message||w('network');if(String(currentId)===sid){setStatus(msg,'error');}console.warn('MUSIC BOX lyrics lookup:',err);}
+    }catch(err){
+      if(err?.name==='AbortError')return;
+      if(seq!==currentRequestId)return;
+      attempted.delete(sid); // Allow a later retry after a real lookup failure.
+      const msg=err?.message||w('network');
+      if(String(currentId)===sid){setStatus(msg,'error');}
+      console.warn('MUSIC BOX lyrics lookup:',err);
+    }finally{
+      if(activeLookupSeq===seq)activeLookupSeq=null;
+    }
   }
   function showCandidates(candidates){
     if(!opened)return;const box=$('mbLyricsResults');box.replaceChildren();box.hidden=false;setStatus(w('choose'));
