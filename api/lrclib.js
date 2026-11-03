@@ -55,8 +55,8 @@ export default async function handler(req, res) {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Lrclib-Client': 'MUSIC-BOX/8.5.6 (personal music player)',
-        'User-Agent': 'MUSIC-BOX/8.5.6 (personal music player)'
+        'Lrclib-Client': 'MUSIC-BOX/9.0.0 (personal music player)',
+        'User-Agent': 'MUSIC-BOX/9.0.0 (personal music player)'
       },
       redirect: 'follow',
       signal: controller.signal
