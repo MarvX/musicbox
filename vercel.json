@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/lrclib.js": {
+      "maxDuration": 15
+    }
+  }
+}

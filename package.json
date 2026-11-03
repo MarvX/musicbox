@@ -1,0 +1,7 @@
+{
+  "name": "music-box-v8-5-5",
+  "version": "8.5.5",
+  "private": true,
+  "type": "module",
+  "description": "MUSIC BOX single-page app with a same-origin LRCLIB relay"
+}
