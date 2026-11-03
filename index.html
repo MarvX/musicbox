@@ -4938,6 +4938,8 @@ init();
   let lastRequestAt = 0;
   const attempted = new Set();
   const lyricsCache = new Map();
+  let activeLookupSeq = null;
+  let connectionTestId = 0;
 
   const text = (id,value) => { const el=$(id); if(el) el.textContent=value??''; };
   const norm = value => String(value||'').toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -5053,11 +5055,11 @@ init();
     }catch(_){return null;}
   }
   async function waitThrottle(){const wait=Math.max(0,300-(Date.now()-lastRequestAt));if(wait)await new Promise(r=>setTimeout(r,wait));lastRequestAt=Date.now();}
-  async function fetchLrclibAttempt(url,seq,parentController,identifyClient=true){
+  async function fetchLrclibAttempt(url,seq,parentController,identifyClient=true,isCurrent=()=>seq===currentRequestId){
     const parent=parentController;
-    if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+    if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
     await waitThrottle();
-    if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+    if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
     const local=new AbortController();let timedOut=false;
     const abortParent=()=>{try{local.abort();}catch(_){}};
     parent?.signal.addEventListener('abort',abortParent,{once:true});
@@ -5073,12 +5075,12 @@ init();
     if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/8.5.6 (personal music player)'};
     try{return await fetch(url,options);}
     catch(err){
-      if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+      if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
       if(timedOut)throw new Error(w('timeout'));
       throw err;
     }finally{clearTimeout(timer);parent?.signal.removeEventListener('abort',abortParent);}
   }
-  async function requestJson(url,seq,parentController=controller){
+  async function requestJson(url,seq,parentController=controller,isCurrent=()=>seq===currentRequestId){
     if(Date.now()<retryAt){const seconds=Math.ceil((retryAt-Date.now())/1000);throw new Error(w('rate').replace('{0}',String(seconds)));}
     const parent=parentController;let response=null,proxyFailure=null,firstDirectError=null;
     const proxyUrl=makeLrclibProxyUrl(url);
@@ -5086,7 +5088,7 @@ init();
     // This avoids browser-to-LRCLIB DNS, TLS, CORS and extension restrictions.
     if(proxyUrl){
       try{
-        const proxied=await fetchLrclibAttempt(proxyUrl,seq,parent,false);
+        const proxied=await fetchLrclibAttempt(proxyUrl,seq,parent,false,isCurrent);
         const isOurProxy=proxied.headers.get('x-music-box-lrclib-proxy')==='1';
         if(isOurProxy && (proxied.ok||proxied.status===404||proxied.status===429||proxied.status===503)){
           response=proxied;lastLrclibTransport='vercel-relay';
@@ -5101,12 +5103,12 @@ init();
     }
     if(!response){
       try{
-        response=await fetchLrclibAttempt(url,seq,parent,true);lastLrclibTransport='direct';
+        response=await fetchLrclibAttempt(url,seq,parent,true,isCurrent);lastLrclibTransport='direct';
       }catch(err){
         if(err?.name==='AbortError')throw err;
         firstDirectError=err;
         try{
-          response=await fetchLrclibAttempt(url,seq,parent,false);lastLrclibTransport='direct-plain';
+          response=await fetchLrclibAttempt(url,seq,parent,false,isCurrent);lastLrclibTransport='direct-plain';
         }catch(secondError){
           if(secondError?.name==='AbortError')throw secondError;
           const online=typeof navigator==='undefined'||navigator.onLine!==false;
@@ -5121,7 +5123,7 @@ init();
         }
       }
     }
-    if(parent?.signal.aborted || seq!==currentRequestId)throw new DOMException('Aborted','AbortError');
+    if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
     if(response.status===404)return null;
     if(response.status===429||response.status===503){
       const sec=Math.max(1,parseInt(response.headers.get('Retry-After')||'5',10)||5);retryAt=Date.now()+sec*1000;
@@ -5137,16 +5139,20 @@ init();
   }
   async function testConnection(){
     const btn=$('mbLyricsTest');if(btn)btn.disabled=true;
-    try{controller?.abort();}catch(_){}
-    const seq=++currentRequestId;const testController=new AbortController();
-    setStatus(w('testing'));
+    // Connection checks are isolated from lyric lookups: they must never abort
+    // the active track request or advance its request sequence.
+    const testId=++connectionTestId;
+    const seq=currentRequestId;
+    const testController=new AbortController();
+    const isCurrent=()=>testId===connectionTestId;
+    if(activeLookupSeq===null)setStatus(w('testing'));
     try{
-      const result=await requestJson('https://lrclib.net/api/search?q=still%20alive',seq,testController);
-      if(seq!==currentRequestId)return;
+      const result=await requestJson('https://lrclib.net/api/search?q=still%20alive',seq,testController,isCurrent);
+      if(!isCurrent())return;
       if(!Array.isArray(result))throw new Error(w('httpError')+'200 · Invalid response');
       const via=lastLrclibTransport==='vercel-relay'?' · Vercel relay':' · Direct API';
-      setStatus(w('connected')+via,'success');
-    }catch(err){if(err?.name!=='AbortError'&&seq===currentRequestId)setStatus(err?.message||w('network'),'error');}
+      if(activeLookupSeq===null)setStatus(w('connected')+via,'success');
+    }catch(err){if(err?.name!=='AbortError'&&isCurrent()&&activeLookupSeq===null)setStatus(err?.message||w('network'),'error');}
     finally{if(btn)btn.disabled=false;}
   }
   function normalizeRecord(record,lookupKey=null){
@@ -5163,6 +5169,7 @@ init();
     if(!force&&attempted.has(sid))return;
     if(force)attempted.delete(sid);attempted.add(sid);
     const seq=++currentRequestId;try{controller?.abort();}catch(_){} controller=new AbortController();
+    activeLookupSeq=seq;
     setStatus(w('loading')); if(opened)renderPanel();
     try{
       const tags=await identifyTags(it);if(!tags.title||!tags.artist){
@@ -5193,7 +5200,16 @@ init();
       }
       if(candidates.length){it.lyrics={...(it.lyrics||{}),lookupKey,lookupStatus:'choose',lastCandidates:candidates.slice(0,20).map(c=>normalizeRecord(c,lookupKey))};await persist(it);if(String(currentId)===sid)showCandidates(it.lyrics.lastCandidates);}
       else{it.lyrics={...(it.lyrics||{}),lookupStatus:'not-found',lastLookupAt:new Date().toISOString()};await persist(it);if(String(currentId)===sid){renderPanel();setStatus(w('notFound'));}}
-    }catch(err){if(err?.name==='AbortError')return;if(seq!==currentRequestId)return;const msg=err?.message||w('network');if(String(currentId)===sid){setStatus(msg,'error');}console.warn('MUSIC BOX lyrics lookup:',err);}
+    }catch(err){
+      if(err?.name==='AbortError')return;
+      if(seq!==currentRequestId)return;
+      attempted.delete(sid); // Allow a later retry after a real lookup failure.
+      const msg=err?.message||w('network');
+      if(String(currentId)===sid){setStatus(msg,'error');}
+      console.warn('MUSIC BOX lyrics lookup:',err);
+    }finally{
+      if(activeLookupSeq===seq)activeLookupSeq=null;
+    }
   }
   function showCandidates(candidates){
     if(!opened)return;const box=$('mbLyricsResults');box.replaceChildren();box.hidden=false;setStatus(w('choose'));
