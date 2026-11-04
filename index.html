@@ -5030,6 +5030,7 @@ init();
     .mb-now-queue-column{padding-left:12px}
   }
   @media(max-width:820px){
+    .mb-player-dock{left:8px;right:8px;bottom:76px!important;margin:0!important}
     .mb-now-drawer{padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
     .mb-now-top{height:46px;flex-basis:46px;grid-template-columns:1fr auto;gap:8px}
     .mb-now-top-title{display:none}
@@ -5557,7 +5558,7 @@ init();
   });
   $('mbNowSeek').addEventListener('input',e=>{if(au.duration)au.currentTime=(Number(e.target.value)/1000)*au.duration;updateNowProgress();});
   $('mbNowEq').addEventListener('click',()=>{$('sheet').classList.toggle('open');});
-  $('mbNowQueue').addEventListener('click',e=>{const row=e.target.closest('[data-queue-id]');if(row){window.mbKeepQueue=true;playTrack(Number(row.dataset.queueId));}});
+  $('mbNowQueue').addEventListener('click',e=>{const row=e.target.closest('[data-queue-id]');if(row){const selected=library.find(it=>String(it.id)===String(row.dataset.queueId));if(selected){window.mbKeepQueue=true;playTrack(selected.id);}}});
   let dragQueueId=null;
   $('mbNowQueue').addEventListener('dragstart',e=>{const row=e.target.closest('[data-queue-id]');if(!row)return;dragQueueId=row.dataset.queueId;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragQueueId);});
   $('mbNowQueue').addEventListener('dragover',e=>{if(e.target.closest('[data-queue-id]')){e.preventDefault();e.dataTransfer.dropEffect='move';}});
