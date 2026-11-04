@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MUSIC BOX — V9.0.0 DJ Pro Hot Cues & Loops</title>
+<title>MUSIC BOX — V9.0.1 DJ Pro Hot Cues & Loops</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -4300,7 +4300,7 @@ init();
       stores[name]=rows.map(row=>({key:packData(row.key,assets,seen),value:packData(row.value,assets,seen)}));
     }
     const manifest={
-      format:'MUSIC_BOX_BACKUP',formatVersion:1,appVersion:'V9.0.0 Lyrics Relay & DJ Recovery',createdAt:new Date().toISOString(),
+      format:'MUSIC_BOX_BACKUP',formatVersion:1,appVersion:'V9.0.1 Lyrics Relay & DJ Recovery',createdAt:new Date().toISOString(),
       origin:location.origin,dbName:snapshot.db.name,dbVersion:snapshot.db.version,
       stores,localStorage:snapshot.local,
       assets:assets.map(a=>({id:a.id,size:a.size,type:a.type,name:a.name,lastModified:a.lastModified})),
@@ -4924,11 +4924,64 @@ init();
 </style>
 
 
+<style id="mbNowPlayingStyles">
+  .mb-now-drawer{position:fixed;z-index:12;top:82px;right:248px;bottom:102px;width:340px;display:flex;flex-direction:column;gap:12px;padding:14px;background:rgba(15,22,18,.97);border:1px solid rgba(255,255,255,.08);border-right:0;border-radius:18px 0 0 18px;box-shadow:0 20px 70px rgba(0,0,0,.42);backdrop-filter:blur(24px);overflow:hidden}
+  .mb-now-drawer[hidden]{display:none!important}
+  .mb-now-artwork{width:min(100%,190px);aspect-ratio:1;align-self:center;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:linear-gradient(145deg,#29382d,#141d17);box-shadow:0 14px 35px rgba(0,0,0,.3)}
+  .mb-now-artwork .cov{width:100%!important;height:100%!important;border-radius:0!important;font-size:58px!important}
+  .mb-now-artwork img{width:100%;height:100%;object-fit:cover}
+  .mb-now-track{min-width:0;text-align:center}
+  .mb-now-track b{display:block;font-size:15px;color:#f2f7f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mb-now-track small{display:block;color:#89978d;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mb-now-panel-wrap{min-height:0;flex:1;overflow:auto;overscroll-behavior:contain}
+  .mb-now-drawer .mb-lyrics-panel{display:flex;flex-direction:column;min-height:100%;margin:0;padding:12px;background:transparent;border:0;box-shadow:none}
+  .mb-now-drawer .mb-lyrics-head{align-items:flex-start}
+  .mb-now-drawer .mb-lyrics-heading{display:none}
+  .mb-now-drawer .mb-lyrics-tools{width:100%;justify-content:space-between}
+  .mb-now-drawer .mb-lyrics-tools button{font-size:10px;padding:6px 8px!important}
+  .mb-now-drawer .mb-lyrics-status{min-height:30px;padding:7px 2px}
+  .mb-now-drawer .mb-lyrics-content{max-height:none;flex:1;min-height:160px;padding:8px 2px}
+  .mb-now-drawer .mb-lyrics-line{text-align:right!important;font-size:14px!important;padding:9px 10px!important}
+  .mb-now-drawer .mb-lyrics-line.active{text-align:right!important;font-size:17px!important}
+  .mb-now-drawer .mb-lyrics-foot{font-size:9px}
+  .mb-now-drawer .mb-lyrics-toolbar{display:none}
+  .mb-player-dock{position:fixed;left:0;right:248px;bottom:10px;z-index:13;margin:0 16px 0 24px}
+  .mb-player-dock .player{margin:0;padding:9px 12px;gap:10px;background:rgba(19,27,22,.97);border:1px solid rgba(255,255,255,.09);box-shadow:0 12px 38px rgba(0,0,0,.38);backdrop-filter:blur(20px);flex-wrap:nowrap}
+  .mb-player-dock .pinfo{min-width:90px}
+  .mb-player-dock .pseek{min-width:100px}
+  .mb-player-dock .mb-lyrics-toolbar{margin:0;padding:0;flex:0 0 auto}
+  .mb-player-dock .mb-lyrics-toggle{white-space:nowrap;padding:9px 11px!important}
+  .mb-player-dock .mb-lyrics-track-hint{display:none}
+  .mb-shell.mb-now-playing-open .mb-main-col{padding-right:340px}
+  @media(max-width:1120px) and (min-width:821px){
+    .mb-now-drawer{right:218px;width:310px}
+    .mb-player-dock{right:218px}
+    .mb-shell.mb-now-playing-open .mb-main-col{padding-right:310px}
+  }
+  @media(max-width:820px){
+    .mb-shell.mb-now-playing-open .mb-main-col{padding-right:0}
+    .mb-now-drawer{top:8px;right:8px;left:8px;bottom:145px;width:auto;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:12px}
+    .mb-now-artwork{width:min(48vw,170px)}
+    .mb-now-drawer .mb-lyrics-content{min-height:120px}
+    .mb-player-dock{left:8px;right:8px;bottom:76px;margin:0}
+    .mb-player-dock .player{flex-wrap:wrap;gap:7px;padding:8px}
+    .mb-player-dock .pseek{order:5;flex-basis:100%;min-width:100%}
+    .mb-player-dock .mb-lyrics-toggle{font-size:10px;padding:8px!important}
+  }
+  @media(max-width:420px){
+    .mb-player-dock .mb-lyrics-toggle{font-size:0;min-width:36px}
+    .mb-player-dock .mb-lyrics-toggle:before{content:"♫";font-size:17px}
+  }
+  @media(prefers-reduced-motion:no-preference){
+    .mb-now-drawer{animation:mbNowIn .2s ease-out}
+    @keyframes mbNowIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+  }
+</style>
 <script id="mbLyricsIntegration">
 (function musicBoxLyrics85(){
   'use strict';
   const $ = id => document.getElementById(id);
-  document.title='MUSIC BOX — V9.0.0 Lyrics Relay & DJ Recovery';
+  document.title='MUSIC BOX — V9.0.1 Lyrics Relay & DJ Recovery';
   const fa = () => typeof LANG !== 'undefined' && LANG !== 'en';
   const words = {
     fa:{toggle:'♫ نمایش متن آهنگ',hide:'بستن متن',none:'هنوز آهنگی برای نمایش متن انتخاب نشده.',loading:'در حال پیدا کردن متن آهنگ در LRCLIB…',notFound:'متنی برای این آهنگ پیدا نشد. می‌توانی متن را دستی وارد کنی.',exact:'متن آهنگ پیدا شد و ذخیره شد.',choose:'چند نسخه پیدا شد؛ نسخه‌ی درست را انتخاب کن.',network:'مرورگر نتوانست از LRCLIB پاسخ شبکه‌ای دریافت کند. برای دسترسی پایدار، مسیر واسط هم‌مبدأ Vercel را فعال کن.', timeout:'پاسخ LRCLIB در مهلت تعیین‌شده نرسید. اتصال را بررسی کن و دوباره تلاش کن.', testing:'در حال آزمایش اتصال به LRCLIB…', connected:'اتصال به LRCLIB برقرار است؛ API پاسخ معتبر داد.',rate:'محدودیت درخواست LRCLIB فعال شده است. لطفاً {0} ثانیه دیگر دوباره تلاش کن.',service:'سرویس LRCLIB موقتاً در دسترس نیست. کمی بعد دوباره تلاش کن.',noMeta:'برای جست‌وجوی دقیق، عنوان و هنرمند آهنگ لازم است.',httpError:'خطای LRCLIB: ',offline:'اتصال اینترنت مرورگر برقرار نیست.',testConnection:'تست اتصال',noLyrics:'این ترک به‌عنوان موسیقی بی‌کلام ثبت شده است.',plain:'متن ساده · بدون زمان‌بندی',synced:'متن هماهنگ با پخش',edit:'ویرایش / واردکردن متن',search:'جست‌وجوی دوباره',save:'ذخیره‌ی متن',cancel:'انصراف',import:'واردکردن فایل LRC / TXT',reset:'بازگشت به متن LRCLIB',saved:'متن اختصاصی ذخیره شد.',resetDone:'متن اختصاصی حذف شد و نسخه‌ی LRCLIB نمایش داده می‌شود.',savedManual:'متن دستی',source:'منبع: LRCLIB',manualSource:'منبع: متن واردشده توسط تو',noLine:'متن همگام برای این آهنگ موجود نیست.',editHelp:'فرمت LRC با زمان‌هایی مثل [00:12.30] برای همگام‌سازی خطی؛ فایل TXT برای متن ساده.',imported:'فایل متن بارگذاری شد. برای ثبت تغییرات، ذخیره را بزن.',needTrack:'ابتدا یک آهنگ از کتابخانه پخش کن.',lrcError:'فایل متن قابل خواندن نیست.',duration:'مدت آهنگ',instrumental:'بی‌کلام',lines:'متن خطی',searchAgain:'تلاش دوباره',savedCache:'از حافظه‌ی محلی',notSynced:'بدون زمان‌بندی',provider:'LRCLIB',chooseOne:'انتخاب این نسخه',close:'بستن',editing:'در حال ویرایش متن',retryWait:'لطفاً بعد از پایان زمان انتظار دوباره جست‌وجو کن.'},
@@ -4937,12 +4990,18 @@ init();
   const w = k => (fa()?words.fa:words.en)[k] || k;
   if (!$('player') || typeof library === 'undefined' || typeof dbFilesTx !== 'function') return;
 
-  // Keep the lyrics drawer attached to the persistent player dock.
+  // Separate the persistent mini-player from the dedicated Now Playing / lyrics surface.
   const player = $('player');
   const dock = player.parentElement || player;
   const toolbar = document.createElement('div');
   toolbar.className = 'mb-lyrics-toolbar';
   toolbar.innerHTML = '<button type="button" class="mb-lyrics-toggle" id="mbLyricsToggle" aria-expanded="false">♫ '+w('toggle').replace(/^♫\s*/,'')+'</button><span class="mb-lyrics-track-hint" id="mbLyricsTrackHint"></span>';
+  const drawer = document.createElement('aside');
+  drawer.className = 'mb-now-drawer'; drawer.id = 'mbNowDrawer'; drawer.hidden = true;
+  drawer.innerHTML = '<div class="mb-now-artwork" id="mbNowArtwork">♫</div><div class="mb-now-track"><b id="mbNowTitle">—</b><small id="mbNowArtist"></small></div><div class="mb-now-panel-wrap" id="mbNowPanelWrap"></div>';
+  document.body.append(drawer);
+  const pctl = player.querySelector('.pctl');
+  if(pctl) pctl.append(toolbar); else dock.append(toolbar);
   const panel = document.createElement('section');
   panel.className = 'mb-lyrics-panel'; panel.id = 'mbLyricsPanel'; panel.hidden = true;
   panel.innerHTML = `
@@ -4965,7 +5024,7 @@ init();
       <div class="mb-lyrics-foot"><span>${w('editHelp')}</span><span id="mbLyricsEditStatus"></span></div>
     </div>
     <div class="mb-lyrics-foot"><span id="mbLyricsSource">${w('source')}</span><span>Powered by <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a></span></div>`;
-  dock.append(toolbar,panel);
+  $('mbNowPanelWrap').append(panel);
 
   let currentId = null;
   let currentRequestId = 0;
@@ -5008,15 +5067,24 @@ init();
   }
   function activeSyncedText(record){return record?.syncedLyrics || record?.manual?.syncedLyrics || null;}
   function setPanelOpen(value){
-    opened=!!value; panel.hidden=!opened;
+    opened=!!value; panel.hidden=!opened; drawer.hidden=!opened;
+    document.querySelector('.mb-shell')?.classList.toggle('mb-now-playing-open',opened);
     const b=$('mbLyricsToggle'); if(b){b.setAttribute('aria-expanded',String(opened));b.textContent=opened?'♫ '+w('hide'):'♫ '+w('toggle').replace(/^♫\s*/,'');}
     if(opened){renderPanel(); const it=currentTrack(currentId); if(it&&!it.lyrics) lookup(it.id,false);}
   }
   function updateTrackHeader(it){
     const title=it?trackTitle(it):w('none');
+    const artist=it?(trackArtist(it)||'—'):'';
     text('mbLyricsHeading',title);
-    text('mbLyricsSubtitle',it?(trackArtist(it)||'—')+' · '+w('duration')+': '+durationText(it.info?.duration || (String(plCur)===String(it.id)?au.duration:0)):'LRCLIB');
-    text('mbLyricsTrackHint',it?title+(trackArtist(it)?' · '+trackArtist(it):''):w('none'));
+    text('mbLyricsSubtitle',it?artist+' · '+w('duration')+': '+durationText(it.info?.duration || (String(plCur)===String(it.id)?au.duration:0)):'LRCLIB');
+    text('mbLyricsTrackHint',it?title+(artist?' · '+artist:''):w('none'));
+    text('mbNowTitle',title); text('mbNowArtist',artist);
+    const art=$('mbNowArtwork'); if(art){
+      art.replaceChildren();
+      const source=$('pCov');
+      if(source){const clone=source.cloneNode(true);clone.removeAttribute('id');clone.classList.remove('big');art.append(clone);}
+      else art.textContent='♫';
+    }
   }
   function renderPanel(){
     const it=currentTrack(currentId);
@@ -5111,7 +5179,7 @@ init();
       if(location.origin && location.origin!=='null' && requestOrigin===location.origin) credentials='same-origin';
     } catch (_) {}
     const options={method:'GET',mode:'cors',credentials,cache:'default',redirect:'follow',signal:local.signal};
-    if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/9.0.0 (personal music player)'};
+    if(identifyClient)options.headers={'Lrclib-Client':'MUSIC-BOX/9.0.1 (personal music player)'};
     try{return await fetch(url,options);}
     catch(err){
       if(parent?.signal.aborted || !isCurrent())throw new DOMException('Aborted','AbortError');
@@ -5295,6 +5363,8 @@ init();
   }
 
   $('mbLyricsToggle').addEventListener('click',()=>setPanelOpen(!opened));
+  $('mbNowDrawer').addEventListener('keydown',e=>{if(e.key==='Escape')setPanelOpen(false);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&opened)setPanelOpen(false);});
   $('mbLyricsClose').addEventListener('click',()=>setPanelOpen(false));
   $('mbLyricsSearch').addEventListener('click',()=>{if(currentId!=null)lookup(currentId,true);else setStatus(w('needTrack'));});
   $('mbLyricsTest').addEventListener('click',testConnection);
