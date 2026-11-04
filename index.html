@@ -6027,14 +6027,84 @@ init();
   top.classList.add('mb-v10-topbar');
   const side=document.querySelector('.mb-sidebar');
   const mobileLayout=window.matchMedia('(max-width:820px)');
-  function placeDock(){
-    if(mobileLayout.matches)document.body.append(dock);
-    else if(side)side.insertBefore(dock,side.querySelector('.mb-sidebar-foot'));
-    else top.append(dock);
+  const layoutDefaults={side:'right',dock:'sidebar',size:'standard'};
+  let layoutPrefs={...layoutDefaults};
+  try{layoutPrefs={...layoutDefaults,...JSON.parse(localStorage.getItem('mb.layoutPrefs')||'{}')};}catch(_){}
+  const valid=(v,allowed,fallback)=>allowed.includes(v)?v:fallback;
+  layoutPrefs.side=valid(layoutPrefs.side,['right','left'],'right');
+  layoutPrefs.dock=valid(layoutPrefs.dock,['sidebar','bottom-right','bottom-left','top-right','top-left'],'sidebar');
+  layoutPrefs.size=valid(layoutPrefs.size,['compact','standard','wide'],'standard');
+  function applyLayout(){
+    const mobile=mobileLayout.matches;
+    shell?.setAttribute('data-sidebar-side',layoutPrefs.side);
+    document.body.dataset.mbPlayerPosition=mobile?'mobile':layoutPrefs.dock;
+    document.body.dataset.mbPlayerSize=layoutPrefs.size;
+    dock.dataset.placement=mobile?'mobile':layoutPrefs.dock;
+    dock.dataset.size=layoutPrefs.size;
+    if(mobile){document.body.append(dock);return;}
+    if(layoutPrefs.dock==='sidebar'&&side)side.insertBefore(dock,side.querySelector('.mb-sidebar-foot'));
+    else document.body.append(dock);
   }
-  placeDock();
-  if(mobileLayout.addEventListener)mobileLayout.addEventListener('change',placeDock);
-  else if(mobileLayout.addListener)mobileLayout.addListener(placeDock);
+  function saveLayout(){
+    try{localStorage.setItem('mb.layoutPrefs',JSON.stringify(layoutPrefs));}catch(_){}
+    applyLayout();
+    syncLayoutPanel();
+  }
+  applyLayout();
+  if(mobileLayout.addEventListener)mobileLayout.addEventListener('change',applyLayout);
+  else if(mobileLayout.addListener)mobileLayout.addListener(applyLayout);
+
+  const layoutButton=document.createElement('button');
+  layoutButton.type='button';layoutButton.className='mb-layout-open';layoutButton.id='mbLayoutOpen';
+  layoutButton.innerHTML='<span aria-hidden="true">⚙</span><span>چیدمان</span>';
+  layoutButton.setAttribute('aria-haspopup','dialog');layoutButton.setAttribute('aria-expanded','false');
+  const topActions=top.querySelector('.actions');
+  if(topActions)topActions.append(layoutButton);else top.append(layoutButton);
+  const layoutOverlay=document.createElement('div');
+  layoutOverlay.className='mb-layout-overlay';layoutOverlay.id='mbLayoutOverlay';layoutOverlay.hidden=true;
+  layoutOverlay.innerHTML=`
+    <section class="mb-layout-panel" role="dialog" aria-modal="true" aria-labelledby="mbLayoutTitle">
+      <header><div><small>PERSONALIZE YOUR SPACE</small><h2 id="mbLayoutTitle">شخصی‌سازی چیدمان</h2></div><button type="button" class="mb-layout-close" aria-label="بستن">✕</button></header>
+      <div class="mb-layout-group"><b>جای نوار کناری</b><div class="mb-layout-options" data-layout-group="side">
+        <button type="button" data-value="right">سمت راست</button><button type="button" data-value="left">سمت چپ</button>
+      </div></div>
+      <div class="mb-layout-group"><b>جای مینی‌پلیر در دسکتاپ</b><div class="mb-layout-options mb-layout-grid" data-layout-group="dock">
+        <button type="button" data-value="sidebar">پایین نوار کناری</button>
+        <button type="button" data-value="bottom-right">پایین سمت راست</button>
+        <button type="button" data-value="bottom-left">پایین سمت چپ</button>
+        <button type="button" data-value="top-right">بالا سمت راست</button>
+        <button type="button" data-value="top-left">بالا سمت چپ</button>
+      </div></div>
+      <div class="mb-layout-group"><b>اندازه مینی‌پلیر</b><div class="mb-layout-options" data-layout-group="size">
+        <button type="button" data-value="compact">جمع‌وجور</button><button type="button" data-value="standard">معمولی</button><button type="button" data-value="wide">بزرگ</button>
+      </div></div>
+      <p class="mb-layout-note">در موبایل، مینی‌پلیر برای جلوگیری از تداخل با نوار پایین، در محل ثابت و سازگار با صفحه قرار می‌گیرد. تنظیمات دسکتاپ ذخیره می‌شوند.</p>
+      <footer><button type="button" class="mb-layout-reset">بازگشت به حالت پیش‌فرض</button><button type="button" class="mb-layout-done">انجام شد</button></footer>
+    </section>`;
+  document.body.append(layoutOverlay);
+  function syncLayoutPanel(){
+    layoutOverlay.querySelectorAll('[data-layout-group]').forEach(group=>{
+      const key=group.dataset.layoutGroup;
+      group.querySelectorAll('button[data-value]').forEach(btn=>{
+        const active=btn.dataset.value===layoutPrefs[key];
+        btn.classList.toggle('on',active);btn.setAttribute('aria-pressed',String(active));
+      });
+    });
+  }
+  function closeLayoutPanel(){
+    layoutOverlay.hidden=true;layoutButton.setAttribute('aria-expanded','false');
+  }
+  layoutButton.addEventListener('click',()=>{
+    layoutOverlay.hidden=false;layoutButton.setAttribute('aria-expanded','true');syncLayoutPanel();
+  });
+  layoutOverlay.addEventListener('click',e=>{
+    if(e.target===layoutOverlay||e.target.closest('.mb-layout-close,.mb-layout-done'))closeLayoutPanel();
+    const option=e.target.closest('[data-layout-group] button[data-value]');
+    if(option){layoutPrefs[option.closest('[data-layout-group]').dataset.layoutGroup]=option.dataset.value;saveLayout();}
+    if(e.target.closest('.mb-layout-reset')){layoutPrefs={...layoutDefaults};saveLayout();}
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!layoutOverlay.hidden)closeLayoutPanel();});
+  syncLayoutPanel();
   top.insertBefore(tabs,top.firstChild);
   const version=document.querySelector('.mb-version');
   if(version)version.textContent='MUSIC BOX · V10.1.0';
@@ -6390,5 +6460,64 @@ init();
   }
 </style>
 
+
+<style id="mbLayoutCustomizer">
+/* V10.3 · user-controlled sidebar and mini-player placement */
+.mb-shell{direction:rtl}
+.mb-shell>.mb-sidebar{direction:rtl;flex-shrink:0}
+.mb-shell>.mb-main-col{direction:rtl;min-width:0;flex:1}
+.mb-shell[data-sidebar-side="left"]{direction:ltr}
+.mb-shell[data-sidebar-side="left"]>.mb-sidebar{order:2;border-left:0!important;border-right:1px solid rgba(255,255,255,.055)}
+.mb-shell[data-sidebar-side="left"]>.mb-main-col{order:1}
+.mb-layout-open{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(255,255,255,.1);background:#1a211e;color:#eaf1eb;border-radius:11px;white-space:nowrap;font-size:12px}
+.mb-layout-open:hover{border-color:var(--accent)!important;background:#202b23!important}
+.mb-layout-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.64);backdrop-filter:blur(9px);display:grid;place-items:center;padding:18px}
+.mb-layout-overlay[hidden]{display:none!important}
+.mb-layout-panel{width:min(470px,100%);max-height:min(85vh,720px);overflow:auto;background:#121a15;border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:22px;box-shadow:0 30px 100px rgba(0,0,0,.55);color:#f2f6f3}
+.mb-layout-panel>header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}
+.mb-layout-panel>header small{font-size:9px;letter-spacing:1.8px;color:#829188}
+.mb-layout-panel>header h2{font-size:19px;margin:5px 0 0;color:#f2f6f3}
+.mb-layout-close{width:34px;height:34px;padding:0;border-radius:50%;background:#222c25}
+.mb-layout-group{margin:18px 0}
+.mb-layout-group>b{display:block;font-size:13px;margin-bottom:9px}
+.mb-layout-options{display:flex;flex-wrap:wrap;gap:7px}
+.mb-layout-options button{flex:1 1 auto;background:#202923;border:1px solid rgba(255,255,255,.06);color:#aebbb1;padding:10px 12px;border-radius:11px;font-size:12px}
+.mb-layout-options button.on{background:rgba(182,243,107,.13);border-color:rgba(182,243,107,.55);color:var(--accent)}
+.mb-layout-grid{display:grid;grid-template-columns:1fr 1fr}
+.mb-layout-note{font-size:11px;line-height:1.9;color:#87958b;background:#0d130f;padding:11px 13px;border-radius:12px}
+.mb-layout-panel>footer{display:flex;justify-content:space-between;gap:8px;margin-top:18px}
+.mb-layout-panel>footer button{font-size:11px;padding:9px 12px}
+.mb-layout-panel .mb-layout-reset{background:transparent;color:#9eaa9f;border:1px solid rgba(255,255,255,.1)}
+.mb-layout-panel .mb-layout-done{background:var(--accent);color:#14200d}
+@media(min-width:821px){
+  body[data-mb-player-position="bottom-right"] #mbPlayerDock,
+  body[data-mb-player-position="bottom-left"] #mbPlayerDock,
+  body[data-mb-player-position="top-right"] #mbPlayerDock,
+  body[data-mb-player-position="top-left"] #mbPlayerDock{
+    position:fixed!important;z-index:115!important;width:clamp(250px,24vw,340px)!important;
+    max-width:calc(100vw - 36px)!important;margin:0!important;bottom:auto!important;top:auto!important;
+    left:auto!important;right:auto!important;flex:none!important;
+  }
+  body[data-mb-player-position="bottom-right"] #mbPlayerDock{right:22px!important;bottom:22px!important}
+  body[data-mb-player-position="bottom-left"] #mbPlayerDock{left:22px!important;bottom:22px!important}
+  body[data-mb-player-position="top-right"] #mbPlayerDock{right:22px!important;top:112px!important}
+  body[data-mb-player-position="top-left"] #mbPlayerDock{left:22px!important;top:112px!important}
+  body[data-mb-player-position="bottom-right"] #mbPlayerDock .mb-mini-lyrics-panel,
+  body[data-mb-player-position="bottom-left"] #mbPlayerDock .mb-mini-lyrics-panel{top:auto!important;bottom:calc(100% + 12px)!important}
+  body[data-mb-player-position="top-right"] #mbPlayerDock .mb-mini-lyrics-panel,
+  body[data-mb-player-position="top-left"] #mbPlayerDock .mb-mini-lyrics-panel{top:calc(100% + 12px)!important;bottom:auto!important;transform-origin:top center}
+  body[data-mb-player-size="compact"] #mbPlayerDock{width:250px!important}
+  body[data-mb-player-size="standard"] #mbPlayerDock{width:clamp(280px,24vw,340px)!important}
+  body[data-mb-player-size="wide"] #mbPlayerDock{width:clamp(320px,30vw,410px)!important}
+  body[data-mb-player-position="sidebar"] #mbPlayerDock{width:100%!important}
+}
+@media(max-width:820px){
+  .mb-layout-open{padding:7px 10px;font-size:11px}
+  .mb-layout-overlay{padding:12px}
+  .mb-layout-panel{padding:18px;border-radius:18px}
+  .mb-layout-grid{grid-template-columns:1fr 1fr}
+}
+@media(prefers-reduced-motion:reduce){.mb-layout-overlay,.mb-layout-panel{scroll-behavior:auto}}
+</style>
 </body>
 </html>
