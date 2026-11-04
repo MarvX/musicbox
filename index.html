@@ -6026,6 +6026,7 @@ init();
   if(!top||!tabs||!dock||!player)return;
   top.classList.add('mb-v10-topbar');
   const side=document.querySelector('.mb-sidebar');
+  const shell=document.querySelector('.mb-shell');
   const mobileLayout=window.matchMedia('(max-width:820px)');
   const layoutDefaults={side:'right',dock:'sidebar',size:'standard'};
   let layoutPrefs={...layoutDefaults};
