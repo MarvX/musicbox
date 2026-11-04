@@ -5804,7 +5804,7 @@ init();
     if(next)$('sheetClose')?.focus({preventScroll:true});
     else if(lastEqTrigger?.isConnected)lastEqTrigger.focus({preventScroll:true});
   };
-  $('btnSheet')?.addEventListener('click',()=>window.mbSetEqSheetOpen?.(!$('sheet').classList.contains('open')));
+  if($('btnSheet'))$('btnSheet').onclick=()=>window.mbSetEqSheetOpen?.(!$('sheet').classList.contains('open'));
   $('sheetH')?.addEventListener('click',e=>{if(e.target.id!=='sheetClose')window.mbSetEqSheetOpen?.(false);});
   $('sheetClose')?.addEventListener('click',()=>window.mbSetEqSheetOpen?.(false));
   $('mbSheetBackdrop')?.addEventListener('click',()=>window.mbSetEqSheetOpen?.(false));
