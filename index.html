@@ -5057,7 +5057,7 @@ init();
     .mb-now-artwork{width:min(66vw, min(34vh,280px))}
     .mb-now-track b{font-size:18px}
     .mb-now-lyrics-column{order:2;flex:none;min-height:280px;height:36vh;border-top:1px solid rgba(255,255,255,.07);padding-top:14px}
-    .mb-now-lyrics-column .mb-lyrics-content{padding:calc(18vh - 42px) 4px;min-height:0}
+    .mb-now-lyrics-column .mb-lyrics-content{padding:clamp(48px,9vh,86px) 4px;min-height:0}
     .mb-now-queue-column{order:3;flex:none;min-height:230px;border-left:0;border-top:1px solid rgba(255,255,255,.07);padding:14px 0 4px}
     .mb-now-queue{max-height:270px}
     .mb-now-progress,.mb-now-volume,.mb-now-pitch{max-width:470px}
@@ -5731,6 +5731,13 @@ init();
   @keyframes mbLivePulse{50%{opacity:.45;text-shadow:0 0 14px var(--mb-neon)}}
   @keyframes mbBackdropIn{from{opacity:0}to{opacity:1}}
   @keyframes mbDialogIn{from{opacity:0;transform:translateY(14px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .plmenu{animation:mbMenuIn .18s cubic-bezier(.2,.8,.2,1) both;transform-origin:top right}
+  .loader.on>div{animation:mbDialogIn .24s cubic-bezier(.2,.8,.2,1) both}
+  .toast.on{animation:mbToastIn .24s cubic-bezier(.2,.8,.2,1) both}
+  .mb-backup-preview.on{animation:mbCardIn .28s ease both}
+  .mb-lyrics-results:not([hidden]){animation:mbCardIn .24s ease both}
+  @keyframes mbMenuIn{from{opacity:0;transform:translateY(7px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes mbToastIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
   @keyframes mbPageIn{from{opacity:0;transform:translateY(14px) scale(.992);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
   @keyframes mbCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   @keyframes mbViewEnter{from{opacity:.45;transform:translateY(8px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
@@ -5815,7 +5822,8 @@ init();
     window.setTab=function(tb){
       if(document.body.dataset.tab===tb||!document.startViewTransition||window.matchMedia('(prefers-reduced-motion: reduce)').matches||document.body.classList.contains('mb-player-open'))return base.apply(this,arguments);
       const args=arguments,ctx=this;
-      return document.startViewTransition(()=>base.apply(ctx,args));
+      try{return document.startViewTransition(()=>base.apply(ctx,args));}
+      catch(_){return base.apply(ctx,args);}
     };
     window.__mbMotionTabWrapped=true;
   }
