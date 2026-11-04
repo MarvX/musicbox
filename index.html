@@ -3753,7 +3753,15 @@ function openTrackDeckMenu(btn, id) {
 function playTrack(id) {
   const it = library.find(x => x.id === id); if (!it) return;
   stopPreview(); stopAll();
-  if(!window.mbKeepQueue || !plQueue.some(qid=>String(qid)===String(id))) plQueue = visibleIds();
+  if(!window.mbKeepQueue || !plQueue.some(qid=>String(qid)===String(id))) {
+    plQueue = visibleIds();
+    if(window.mbShuffle){
+      window.mbOriginalQueue=plQueue.slice();
+      const rest=plQueue.filter(qid=>String(qid)!==String(id));
+      for(let i=rest.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]];}
+      plQueue=[id,...rest];
+    }
+  }
   window.mbKeepQueue=false; plCur = id;
   if (plUrl) URL.revokeObjectURL(plUrl);
   plUrl = URL.createObjectURL(it.file); au.src = plUrl;
@@ -3764,16 +3772,10 @@ function stepTrack(d) {
   if (!plQueue.length) plQueue = visibleIds();
   if (!plQueue.length) return;
   const i = plQueue.indexOf(plCur);
-  let nextIndex;
-  if (window.mbShuffle && d > 0 && plQueue.length > 1) {
-    const choices=plQueue.map((_,n)=>n).filter(n=>n!==i);
-    nextIndex=choices[Math.floor(Math.random()*choices.length)];
-  } else {
-    nextIndex=i<0?(d>0?0:plQueue.length-1):i+d;
-    if(nextIndex<0||nextIndex>=plQueue.length){
-      if(window.mbRepeat==='all')nextIndex=(nextIndex+plQueue.length)%plQueue.length;
-      else return;
-    }
+  let nextIndex=i<0?(d>0?0:plQueue.length-1):i+d;
+  if(nextIndex<0||nextIndex>=plQueue.length){
+    if(window.mbRepeat==='all')nextIndex=(nextIndex+plQueue.length)%plQueue.length;
+    else return;
   }
   window.mbKeepQueue=true;playTrack(plQueue[nextIndex]);
 }
@@ -5547,7 +5549,20 @@ init();
   $('mbNowPlay').addEventListener('click',()=>{if(plCur==null)stepTrack(1);else au.paused?au.play():au.pause();});
   $('mbNowPrev').addEventListener('click',()=>stepTrack(-1));
   $('mbNowNext').addEventListener('click',()=>stepTrack(1));
-  $('mbNowShuffle').addEventListener('click',()=>{window.mbShuffle=!window.mbShuffle;try{localStorage.setItem('ms.shuffle',window.mbShuffle?'1':'0');}catch(_){}updateNowControls();});
+  $('mbNowShuffle').addEventListener('click',()=>{
+    if(!window.mbShuffle){
+      window.mbOriginalQueue=plQueue.slice();
+      const rest=plQueue.filter(id=>String(id)!==String(plCur));
+      for(let i=rest.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]];}
+      plQueue=plCur!=null?[plCur,...rest]:rest;
+      window.mbShuffle=true;
+    }else{
+      if(Array.isArray(window.mbOriginalQueue)&&window.mbOriginalQueue.length)plQueue=window.mbOriginalQueue.slice();
+      window.mbOriginalQueue=null;window.mbShuffle=false;
+    }
+    try{localStorage.setItem('ms.shuffle',window.mbShuffle?'1':'0');}catch(_){}
+    renderNowQueue();updateNowControls();
+  });
   $('mbNowRepeat').addEventListener('click',()=>{window.mbRepeat=window.mbRepeat==='off'?'all':window.mbRepeat==='all'?'one':'off';try{localStorage.setItem('ms.repeat',window.mbRepeat);}catch(_){}updateNowControls();});
   $('mbNowVolume').addEventListener('input',e=>{au.muted=false;au.volume=Math.max(0,Math.min(1,Number(e.target.value)||0));updateNowControls();});
   $('mbNowMute').addEventListener('click',()=>{au.muted=!au.muted;updateNowControls();});
