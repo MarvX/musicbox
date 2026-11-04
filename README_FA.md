@@ -1,8 +1,8 @@
-# MUSIC BOX V9.0.1 — DJ Pro Hot Cues & Loops
+# MUSIC BOX V9.1.0 — DJ Pro Hot Cues & Loops
 
-نسخهٔ V9.0.1 نخستین مرحلهٔ توسعهٔ DJ Pro است و قابلیت‌های قبلی V8.5.6 را حفظ می‌کند.
+نسخهٔ V9.1.0 نخستین مرحلهٔ توسعهٔ DJ Pro است و قابلیت‌های قبلی V8.5.6 را حفظ می‌کند.
 
-## تغییرات V9.0.1
+## تغییرات V9.1.0
 
 - چهار Hot Cue مستقل برای هر Deck (A و B)
 - ثبت نقطهٔ Hot Cue از موقعیت فعلی Cue همان Deck و پخش مستقیم از آن
@@ -46,17 +46,21 @@ Hot Cueها در Session و Auto Draft ذخیره می‌شوند و هنگام 
 واسط `/api/lrclib` فقط درخواست‌های GET به endpointهای مجاز `get` و `search` را عبور می‌دهد. کوکی نشست فقط برای درخواست هم‌دامنه به Vercel Function ارسال می‌شود و درخواست مستقیم به LRCLIB بدون credentials باقی می‌ماند.
 
 
-## V9.0.1 — Now Playing & Lyrics Experience
-- Persistent mini-player dock with quick access to the full Now Playing drawer.
-- Dedicated desktop drawer beside the workspace with track artwork, title, artist and synchronized lyrics.
-- Mobile-friendly expanded Now Playing surface that leaves the mini-player and bottom navigation accessible.
-- Lyrics lookup, LRCLIB relay, manual editing/import and cached lyric records remain on the existing playback and persistence pipeline.
-- The drawer is a presentation layer; it does not create a second audio player or a second playback engine.
+## V9.1.0 — Immersive Now Playing
+- Clicking the artwork in the persistent mini-player opens a full-screen player; there is no extra launcher button.
+- A shared-element View Transition morphs the mini-player artwork into the large player artwork, with a reduced-motion fallback.
+- Desktop layout: synchronized lyrics on the left, artwork and playback controls in the center, and the upcoming queue on the right.
+- Active lyric is centered with two previous and two upcoming lines visible; tapping a timed line seeks the same audio element.
+- Queue view shows the current and upcoming playlist tracks, supports direct playback and drag-to-reorder.
+- Full controls include seek, previous/next, play/pause, volume/mute, shuffle, repeat off/all/one, and a classic pitch fader.
+- Pitch fader changes playback speed and pitch together, as a classic DJ pitch control; EQ & FX opens the existing audio effects sheet.
+- The full player is responsive on mobile and keeps the existing audio engine, LRCLIB lookup, lyric editor/import/cache and playback persistence.
+- No second audio engine or duplicated player is introduced.
 
 ### UI validation
-1. Play a library track and open Now Playing from the mini-player.
-2. Confirm artwork, title and artist update when switching tracks.
-3. Confirm synchronized lyrics follow playback and tapping a lyric seeks the same audio element.
-4. Close and reopen the drawer while navigating Home, Library and DJ Pro; playback must continue uninterrupted.
-5. Test narrow/mobile viewport: drawer should fit above the mini-player and bottom navigation.
-6. Verify no regression in DJ Pro deck playback, Hot Cues, loops, sessions or MBX backup.
+1. Click the mini-player artwork; verify the cover morphs into the main artwork and the player opens without interrupting audio.
+2. Close using Back or Escape; verify the reverse transition returns to the mini-player.
+3. Confirm timed lyrics remain centered, neighboring lines are visible, and tapping a line seeks correctly.
+4. Test queue playback, drag reorder, shuffle, repeat all/one/off, volume/mute, pitch and EQ/FX.
+5. Test desktop, tablet and mobile sizes, including reduced-motion settings.
+6. Verify DJ Pro, Hot Cues, loops, session save/reopen, .mbdj import/export, MBX backup and MP3/WAV export.
