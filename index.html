@@ -5050,7 +5050,8 @@ init();
     .mb-now-artwork{width:min(60vw,230px)}
     .mb-now-main-column{gap:10px}
     .mb-now-lyrics-column{height:34vh;min-height:240px}
-    .mb-now-top-tools button{font-size:9px}
+    .mb-now-top-tools button{font-size:0;width:30px;height:30px;padding:6px!important;display:grid;place-items:center}
+    #mbLyricsSearch:before{content:'⌕';font-size:17px}#mbLyricsTest:before{content:'↻';font-size:14px}#mbLyricsEdit:before{content:'✎';font-size:14px}
   }
   @media(prefers-reduced-motion:no-preference){
     .mb-now-drawer{animation:mbNowScreenIn .36s cubic-bezier(.2,.8,.2,1)}
@@ -5079,7 +5080,7 @@ init();
   // The cover itself opens the immersive player; no extra launcher button is added.
   const player = $('player');
   const drawer = document.createElement('section');
-  drawer.className = 'mb-now-drawer'; drawer.id = 'mbNowDrawer'; drawer.hidden = true;
+  drawer.className = 'mb-now-drawer'; drawer.id = 'mbNowDrawer'; drawer.hidden = true; drawer.setAttribute('role','dialog'); drawer.setAttribute('aria-modal','true'); drawer.setAttribute('aria-label',fa()?'موزیک پلیر':'Music player');
   drawer.innerHTML = [
     '<header class="mb-now-top">',
       '<button type="button" class="mb-now-back" id="mbLyricsClose" aria-label="Back to library"><span aria-hidden="true">←</span><span>'+ (fa()?'بازگشت':'Back') +'</span></button>',
@@ -5215,7 +5216,8 @@ init();
       if(!opened&&cover)cover.style.viewTransitionName='mb-cover';
       document.body.classList.toggle('mb-player-open',opened);
       document.querySelector('.mb-shell')?.classList.toggle('mb-now-playing-open',opened);
-      if(opened){renderPanel();renderNowQueue();updateNowControls();updateNowProgress();const it=currentTrack(currentId);if(it&&!it.lyrics)lookup(it.id,false);}
+      if(opened){renderPanel();renderNowQueue();updateNowControls();updateNowProgress();$('mbLyricsClose')?.focus({preventScroll:true});const it=currentTrack(currentId);if(it&&!it.lyrics)lookup(it.id,false);}
+      else cover?.focus({preventScroll:true});
     };
     if(document.startViewTransition&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
       const vt=document.startViewTransition(change);
