@@ -1,8 +1,8 @@
-# MUSIC BOX V9.0.0 — DJ Pro Hot Cues & Loops
+# MUSIC BOX V9.0.1 — DJ Pro Hot Cues & Loops
 
-نسخهٔ V9.0.0 نخستین مرحلهٔ توسعهٔ DJ Pro است و قابلیت‌های قبلی V8.5.6 را حفظ می‌کند.
+نسخهٔ V9.0.1 نخستین مرحلهٔ توسعهٔ DJ Pro است و قابلیت‌های قبلی V8.5.6 را حفظ می‌کند.
 
-## تغییرات V9.0.0
+## تغییرات V9.0.1
 
 - چهار Hot Cue مستقل برای هر Deck (A و B)
 - ثبت نقطهٔ Hot Cue از موقعیت فعلی Cue همان Deck و پخش مستقیم از آن
@@ -44,3 +44,19 @@ Hot Cueها در Session و Auto Draft ذخیره می‌شوند و هنگام 
 ## LRCLIB
 
 واسط `/api/lrclib` فقط درخواست‌های GET به endpointهای مجاز `get` و `search` را عبور می‌دهد. کوکی نشست فقط برای درخواست هم‌دامنه به Vercel Function ارسال می‌شود و درخواست مستقیم به LRCLIB بدون credentials باقی می‌ماند.
+
+
+## V9.0.1 — Now Playing & Lyrics Experience
+- Persistent mini-player dock with quick access to the full Now Playing drawer.
+- Dedicated desktop drawer beside the workspace with track artwork, title, artist and synchronized lyrics.
+- Mobile-friendly expanded Now Playing surface that leaves the mini-player and bottom navigation accessible.
+- Lyrics lookup, LRCLIB relay, manual editing/import and cached lyric records remain on the existing playback and persistence pipeline.
+- The drawer is a presentation layer; it does not create a second audio player or a second playback engine.
+
+### UI validation
+1. Play a library track and open Now Playing from the mini-player.
+2. Confirm artwork, title and artist update when switching tracks.
+3. Confirm synchronized lyrics follow playback and tapping a lyric seeks the same audio element.
+4. Close and reopen the drawer while navigating Home, Library and DJ Pro; playback must continue uninterrupted.
+5. Test narrow/mobile viewport: drawer should fit above the mini-player and bottom navigation.
+6. Verify no regression in DJ Pro deck playback, Hot Cues, loops, sessions or MBX backup.
