@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MUSIC BOX — V10.0.0 Topbar Player & Karaoke</title>
+<title>MUSIC BOX — V10.1.0 Sidebar Player & Vocal Control</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -5938,14 +5938,14 @@ init();
   const tabs=$('tabs'),dock=$('mbPlayerDock'),player=$('player');
   if(!top||!tabs||!dock||!player)return;
   top.classList.add('mb-v10-topbar');
-  top.insertBefore(dock,top.firstChild);
-  top.insertBefore(tabs,dock.nextSibling);
   const side=document.querySelector('.mb-sidebar');
-  if(side)side.setAttribute('aria-hidden','true');
+  if(side)side.insertBefore(dock,side.querySelector('.mb-sidebar-foot'));
+  else top.append(dock);
+  top.insertBefore(tabs,top.firstChild);
   const version=document.querySelector('.mb-version');
-  if(version)version.textContent='MUSIC BOX · V10.0.0';
+  if(version)version.textContent='MUSIC BOX · V10.1.0';
   const context=$('mbTopContext');
-  if(context)context.textContent='MUSIC BOX · V10.0.0';
+  if(context)context.textContent='MUSIC BOX · V10.1.0';
 
   const mini=document.createElement('div');
   mini.className='mb-mini-lyrics';
@@ -6058,10 +6058,50 @@ init();
     karaoke.textContent=fa()?'♫ حالت کارائوکه':'♫ Karaoke';
     karaoke.setAttribute('aria-pressed','false');
     tools.append(karaoke);
+    const vocalControl=document.createElement('label');
+    vocalControl.className='mb-vocal-control';
+    vocalControl.innerHTML='<span>'+(fa()?'کاهش وکال':'Vocal reduction')+'</span><input id="mbVocalReduction" type="range" min="0" max="100" step="1" value="0" aria-label="'+(fa()?'میزان کاهش وکال':'Vocal reduction amount')+'"><output id="mbVocalReductionValue">0%</output>';
+    tools.append(vocalControl);
+    const vocalSlider=vocalControl.querySelector('#mbVocalReduction');
+    const vocalValue=vocalControl.querySelector('#mbVocalReductionValue');
+    let vocalContext=null,vocalProcessor=null,vocalSource=null,vocalAmount=0;
+    function activateVocalReduction(){
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(!AudioCtx)throw new Error('Web Audio API is not supported');
+      if(!vocalContext){
+        vocalContext=new AudioCtx();
+        vocalSource=vocalContext.createMediaElementSource(au);
+        vocalProcessor=vocalContext.createScriptProcessor(2048,2,2);
+        vocalProcessor.channelCount=2;vocalProcessor.channelCountMode='explicit';vocalProcessor.channelInterpretation='speakers';
+        vocalProcessor.onaudioprocess=event=>{
+          const input=event.inputBuffer,output=event.outputBuffer;
+          const left=input.getChannelData(0);
+          const right=input.numberOfChannels>1?input.getChannelData(1):left;
+          const outL=output.getChannelData(0),outR=output.getChannelData(1);
+          const amount=vocalAmount;
+          for(let i=0;i<outL.length;i++){
+            const l=left[i],r=right[i];
+            outL[i]=Math.max(-1,Math.min(1,l-amount*r));
+            outR[i]=Math.max(-1,Math.min(1,r-amount*l));
+          }
+        };
+        vocalSource.connect(vocalProcessor);vocalProcessor.connect(vocalContext.destination);
+      }
+      if(vocalContext.state==='suspended')vocalContext.resume();
+    }
+    vocalSlider.addEventListener('input',()=>{
+      vocalAmount=Number(vocalSlider.value)/100;
+      vocalValue.textContent=vocalSlider.value+'%';
+      try{activateVocalReduction();}catch(error){
+        vocalSlider.value='0';vocalAmount=0;vocalValue.textContent='0%';
+        toast(fa()?'پردازش کاهش وکال در این مرورگر در دسترس نیست':'Vocal reduction is unavailable in this browser');
+      }
+    });
     karaoke.addEventListener('click',()=>{
       const active=drawer.classList.toggle('mb-karaoke-mode');
       karaoke.setAttribute('aria-pressed',String(active));
       karaoke.textContent=active?(fa()?'✕ خروج از کارائوکه':'✕ Exit Karaoke'):(fa()?'♫ حالت کارائوکه':'♫ Karaoke');
+      vocalControl.classList.toggle('active',active);
     });
   }
   window.mbOpenKaraoke=function(){
@@ -6078,87 +6118,57 @@ init();
 
 
 <style id="mbV10TopbarGridHotfix">
-/* Corrective layout: reserve a real grid cell for the player at the RTL right edge. */
+/* V10.1: keep the mini player in the original right sidebar; move only navigation into the top bar. */
 @media(min-width:821px){
-  header.top.mb-v10-topbar{
-    display:grid!important;
-    direction:rtl;
-    grid-template-columns:minmax(320px,390px) minmax(220px,1fr) auto minmax(160px,260px) auto;
-    grid-template-rows:minmax(92px,auto);
-    grid-template-areas:"player nav brand transport actions";
-    align-items:center;
-    justify-content:stretch;
-    gap:12px;
-    min-width:0;
-    min-height:112px;
-    padding:10px 18px;
-  }
-  header.top.mb-v10-topbar>.mb-player-dock{
-    grid-area:player!important;
-    position:relative!important;
-    inset:auto!important;
-    width:100%!important;
-    min-width:0!important;
-    max-width:none!important;
-    margin:0!important;
-    justify-self:stretch;
-    align-self:center;
-    z-index:125;
-  }
-  header.top.mb-v10-topbar>#tabs,
-  header.top.mb-v10-topbar>.tabs{
-    grid-area:nav!important;
-    position:relative!important;
-    inset:auto!important;
-    width:100%!important;
-    min-width:0!important;
-    max-width:none!important;
-    margin:0!important;
-    justify-self:stretch;
-    align-self:center;
-    display:flex!important;
-    flex-direction:row!important;
-    flex-wrap:nowrap;
-    justify-content:center;
-    align-items:center;
-    gap:4px;
-  }
+  .mb-sidebar{width:248px;flex-basis:248px;min-width:248px;overflow-y:auto;overflow-x:hidden}
+  .mb-sidebar .mb-player-dock{position:relative!important;inset:auto!important;display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:22px 0 14px!important;filter:none;z-index:2}
+  .mb-sidebar .mb-player-dock #player{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto auto auto;gap:8px 9px;width:100%;padding:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:15px}
+  .mb-sidebar .mb-player-dock #pCov{grid-column:1;grid-row:1;width:48px;height:48px}
+  .mb-sidebar .mb-player-dock #player .pinfo{grid-column:2;grid-row:1;min-width:0;justify-content:center}
+  .mb-sidebar .mb-player-dock #player .pinfo b{font-size:11px}
+  .mb-sidebar .mb-player-dock #player .pinfo small{font-size:10px}
+  .mb-sidebar .mb-player-dock #player .pctl{grid-column:1/-1;grid-row:2;justify-content:space-between;gap:2px}
+  .mb-sidebar .mb-player-dock #player .pctl button{width:30px;height:30px;min-width:30px;padding:0;font-size:12px}
+  .mb-sidebar .mb-player-dock #player .pctl #pPlay{width:35px;height:35px;min-width:35px}
+  .mb-sidebar .mb-player-dock #player .pseek{grid-column:1/-1;grid-row:3;min-width:0;gap:5px}
+  .mb-sidebar .mb-player-dock #player .pseek small{font-size:9px}
+  .mb-sidebar .mb-player-dock #player .pvol{grid-column:1/-1;grid-row:4;display:flex;align-items:center;gap:8px}
+  .mb-sidebar .mb-player-dock #player .pvol input{flex:1;min-width:0;width:auto}
+  .mb-sidebar .mb-player-dock #player .mb-mini-lyrics{grid-column:1/-1;grid-row:5}
+  .mb-sidebar .mb-player-dock .mb-mini-lyrics-panel{right:0;left:0;top:auto;bottom:calc(100% + 8px)}
+  header.top.mb-v10-topbar{display:grid!important;direction:rtl;grid-template-columns:minmax(210px,1fr) auto minmax(160px,260px) auto;grid-template-areas:"nav brand transport actions";grid-template-rows:minmax(76px,auto);align-items:center;justify-content:stretch;gap:12px;min-width:0;min-height:96px;padding:10px 18px}
+  header.top.mb-v10-topbar>#tabs,header.top.mb-v10-topbar>.tabs{grid-area:nav!important;position:relative!important;inset:auto!important;width:100%!important;min-width:0!important;max-width:none!important;margin:0!important;justify-self:stretch;align-self:center;display:flex!important;flex-direction:row!important;flex-wrap:nowrap;justify-content:center;align-items:center;gap:5px}
   header.top.mb-v10-topbar>.brand{grid-area:brand;min-width:0;white-space:nowrap}
   header.top.mb-v10-topbar>.transport{grid-area:transport;min-width:0;width:100%;max-width:260px;margin:0}
   header.top.mb-v10-topbar>.actions{grid-area:actions;min-width:0;display:flex;flex-wrap:nowrap;align-items:center}
   header.top.mb-v10-topbar>.mb-top-context{display:none!important}
-  header.top.mb-v10-topbar>.tabs button{flex:1 1 auto;min-width:0;padding-inline:8px}
-  #mbPlayerDock #player{width:100%;min-width:0}
+  header.top.mb-v10-topbar>.tabs button{flex:1 1 auto;min-width:0;padding-inline:9px}
+  .mb-vocal-control{display:none}
+  .mb-vocal-control.active{display:flex}
+  .mb-vocal-control{align-items:center;gap:8px;padding:8px 11px;border-radius:12px;background:rgba(182,243,107,.09);border:1px solid rgba(182,243,107,.17);color:#dcebd7;font-size:11px;white-space:nowrap}
+  .mb-vocal-control input{width:110px;min-width:75px;margin:0}
+  .mb-vocal-control output{min-width:34px;text-align:left;color:var(--accent);font-variant-numeric:tabular-nums}
+  .mb-now-drawer.mb-karaoke-mode .mb-now-top-tools{flex-wrap:wrap;justify-content:center}
 }
 @media(max-width:1200px) and (min-width:1001px){
-  header.top.mb-v10-topbar{
-    grid-template-columns:minmax(300px,340px) minmax(190px,1fr) auto minmax(145px,185px) auto;
-    gap:8px;padding-inline:11px;
-  }
+  header.top.mb-v10-topbar{grid-template-columns:minmax(190px,1fr) auto minmax(140px,185px) auto;gap:8px;padding-inline:11px}
   header.top.mb-v10-topbar>.brand{display:none!important}
 }
 @media(max-width:1000px) and (min-width:821px){
-  header.top.mb-v10-topbar{
-    grid-template-columns:minmax(285px,310px) minmax(150px,1fr) minmax(110px,145px) auto;
-    grid-template-areas:"player nav transport actions";
-    gap:7px;padding-inline:9px;
-  }
+  header.top.mb-v10-topbar{grid-template-columns:minmax(145px,1fr) minmax(110px,145px) auto;grid-template-areas:"nav transport actions";gap:7px;padding-inline:9px}
   header.top.mb-v10-topbar>.brand{display:none!important}
   header.top.mb-v10-topbar>.tabs button{width:38px;flex:0 0 38px;padding:0}
   header.top.mb-v10-topbar>.tabs button>span:not(.mb-nav-icon){display:none}
+  .mb-sidebar{width:230px;flex-basis:230px;min-width:230px}
 }
 @media(max-width:820px){
-  header.top.mb-v10-topbar{
-    display:flex!important;
-    flex-wrap:wrap;
-    min-height:0;
-  }
-  header.top.mb-v10-topbar>.mb-player-dock{
-    position:fixed!important;
-    left:8px!important;right:8px!important;top:auto!important;
-    bottom:calc(76px + env(safe-area-inset-bottom))!important;
-    width:auto!important;max-width:none!important;margin:0!important;
-  }
+  .mb-sidebar{display:none!important}
+  .mb-player-dock{position:fixed!important;left:8px!important;right:8px!important;top:auto!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;margin:0!important;z-index:115;filter:drop-shadow(0 14px 26px rgba(0,0,0,.3))}
+  header.top.mb-v10-topbar{display:flex!important;flex-wrap:wrap;align-items:center;gap:8px;min-height:0;padding:9px 12px}
+  header.top.mb-v10-topbar>.tabs{position:relative!important;inset:auto!important;display:flex!important;flex-direction:row!important;flex-wrap:wrap;justify-content:center;width:auto!important;max-width:100%;margin:0!important}
+  header.top.mb-v10-topbar>.tabs button{flex:1 1 auto}
+  .mb-vocal-control.active{display:flex;flex-wrap:wrap}
+  .mb-vocal-control input{flex:1;min-width:90px}
 }
 </style>
 
