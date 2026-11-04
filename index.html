@@ -5307,7 +5307,7 @@ init();
       activeLine=idx;
       if(idx>=0){
         const target=nodes[idx],box=$('mbLyricsContent');
-        const top=target.offsetTop-box.offsetTop+box.scrollTop;
+        const top=target.getBoundingClientRect().top-box.getBoundingClientRect().top+box.scrollTop;
         const center=top-(box.clientHeight-target.offsetHeight)/2;
         box.scrollTo({top:Math.max(0,center),behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
       }
