@@ -1,7 +1,7 @@
 {
-  "name": "music-box-v9-0-1",
-  "version": "9.0.1",
+  "name": "music-box-v9-1-0",
+  "version": "9.1.0",
   "private": true,
   "type": "module",
-  "description": "MUSIC BOX V9 DJ Pro with hot cues, preview loops, editable sessions and LRCLIB relay"
+  "description": "MUSIC BOX V9.1 immersive player, DJ Pro, lyrics and LRCLIB relay"
 }
