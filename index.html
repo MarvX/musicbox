@@ -3769,7 +3769,13 @@ function playTrack(id) {
   renderPlayer(); renderLibrary();
 }
 function stepTrack(d) {
-  if (!plQueue.length) plQueue = visibleIds();
+  if (!plQueue.length) {
+    plQueue = visibleIds();
+    if(window.mbShuffle){
+      window.mbOriginalQueue=plQueue.slice();
+      for(let i=plQueue.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[plQueue[i],plQueue[j]]=[plQueue[j],plQueue[i]];}
+    }
+  }
   if (!plQueue.length) return;
   const i = plQueue.indexOf(plCur);
   let nextIndex=i<0?(d>0?0:plQueue.length-1):i+d;
