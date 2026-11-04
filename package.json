@@ -1,6 +1,6 @@
 {
-  "name": "music-box-v9",
-  "version": "9.0.0",
+  "name": "music-box-v9-0-1",
+  "version": "9.0.1",
   "private": true,
   "type": "module",
   "description": "MUSIC BOX V9 DJ Pro with hot cues, preview loops, editable sessions and LRCLIB relay"
