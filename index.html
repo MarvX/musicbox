@@ -6116,12 +6116,15 @@ init();
       lastActive=idx;
     }
   }
-  toggle.addEventListener('click',()=>{
-    const open=panel.hidden;panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
+  function setLyricsOpen(open){
+    panel.hidden=!open;
+    toggle.setAttribute('aria-expanded',String(open));
+    dock.classList.toggle('mb-lyrics-open',open);
     if(open){update();const active=list.querySelector('.active');active?.scrollIntoView({block:'center',behavior:'auto'});}
-  });
+  }
+  toggle.addEventListener('click',()=>setLyricsOpen(panel.hidden));
   $('mbMiniLyricsFull').addEventListener('click',()=>{
-    panel.hidden=true;toggle.setAttribute('aria-expanded','false');
+    setLyricsOpen(false);
     const cover=$('pCov');if(cover)cover.click();
     if(typeof window.mbOpenKaraoke==='function')window.mbOpenKaraoke();
   });
@@ -6131,7 +6134,7 @@ init();
   });
   document.addEventListener('click',e=>{
     if(panel.hidden||dock.contains(e.target))return;
-    panel.hidden=true;toggle.setAttribute('aria-expanded','false');
+    setLyricsOpen(false);
   });
   if(typeof au!=='undefined'){
     ['timeupdate','loadedmetadata','play','pause','seeked','ended'].forEach(ev=>au.addEventListener(ev,update));
@@ -6139,7 +6142,7 @@ init();
   const lyricsPanel=$('mbLyricsPanel');
   if(lyricsPanel)new MutationObserver(update).observe(lyricsPanel,{childList:true,subtree:true,characterData:true});
   if(tabs){
-    tabs.addEventListener('click',()=>{panel.hidden=true;toggle.setAttribute('aria-expanded','false');});
+    tabs.addEventListener('click',()=>setLyricsOpen(false));
   }
   update();
 
@@ -6215,7 +6218,13 @@ init();
 /* V10.1: keep the mini player in the original right sidebar; move only navigation into the top bar. */
 @media(min-width:821px){
   .mb-sidebar{width:248px;flex-basis:248px;min-width:248px;overflow-y:auto;overflow-x:hidden}
-  .mb-sidebar .mb-player-dock{position:relative!important;inset:auto!important;display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:22px 0 14px!important;filter:none;z-index:2}
+  .mb-sidebar .mb-player-dock{position:relative!important;inset:auto!important;display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0 0 14px!important;filter:none;z-index:2;transform:translateY(0);transition:transform .34s cubic-bezier(.2,.75,.2,1),filter .28s ease}
+  .mb-sidebar .mb-player-dock.mb-lyrics-open{transform:translateY(-10px)}
+  .mb-sidebar .mb-player-dock .mb-mini-lyrics-panel{top:calc(100% + 9px)!important;bottom:auto!important;transform-origin:top right}
+  .mb-sidebar .mb-player-dock .mb-mini-lyrics-panel:not([hidden]){animation:mbLyricsReveal .32s cubic-bezier(.2,.75,.2,1) both}
+  @keyframes mbLyricsReveal{from{opacity:0;transform:translateY(-9px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .mb-sidebar{overflow:visible!important}
+  .mb-sidebar .mb-player-dock{z-index:15}
   .mb-sidebar .mb-player-dock #player{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto auto auto;gap:8px 9px;width:100%;padding:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:15px}
   .mb-sidebar .mb-player-dock #pCov{grid-column:1;grid-row:1;width:48px;height:48px}
   .mb-sidebar .mb-player-dock #player .pinfo{grid-column:2;grid-row:1;min-width:0;justify-content:center}
