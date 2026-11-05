@@ -6274,11 +6274,11 @@ init();
     tools.append(karaoke);
     const vocalControl=document.createElement('label');
     vocalControl.className='mb-vocal-control';
-    vocalControl.innerHTML='<span>'+(fa()?'کاهش وکال':'Vocal reduction')+'</span><input id="mbVocalReduction" type="range" min="0" max="100" step="1" value="0" aria-label="'+(fa()?'میزان کاهش وکال':'Vocal reduction amount')+'"><output id="mbVocalReductionValue">0%</output>';
+    vocalControl.innerHTML='<span>'+(fa()?'کاهش وکال با حفظ بیس':'Vocal reduction · Bass preserve')+'</span><input id="mbVocalReduction" type="range" min="0" max="100" step="1" value="0" aria-label="'+(fa()?'میزان کاهش وکال':'Vocal reduction amount')+'"><output id="mbVocalReductionValue">0%</output>';
     tools.append(vocalControl);
     const vocalSlider=vocalControl.querySelector('#mbVocalReduction');
     const vocalValue=vocalControl.querySelector('#mbVocalReductionValue');
-    let vocalContext=null,vocalProcessor=null,vocalSource=null,vocalAmount=0;
+    let vocalContext=null,vocalProcessor=null,vocalSource=null,vocalAmount=0,vocalSmooth=0;
     function activateVocalReduction(){
       const AudioCtx=window.AudioContext||window.webkitAudioContext;
       if(!AudioCtx)throw new Error('Web Audio API is not supported');
@@ -6289,19 +6289,25 @@ init();
         vocalProcessor.channelCount=2;
         vocalProcessor.channelCountMode='explicit';
         vocalProcessor.channelInterpretation='speakers';
+        const cutoff=180,Q=Math.SQRT1_2,sr=vocalContext.sampleRate;
+        const w0=2*Math.PI*cutoff/sr,cos=Math.cos(w0),alpha=Math.sin(w0)/(2*Q),a0=1+alpha;
+        const b0=(1+cos)/(2*a0),b1=-(1+cos)/a0,b2=b0,a1=(-2*cos)/a0,a2=(1-alpha)/a0;
+        let x1=0,x2=0,y1=0,y2=0;
         vocalProcessor.onaudioprocess=event=>{
           const input=event.inputBuffer,output=event.outputBuffer;
           const left=input.getChannelData(0);
           const right=input.numberOfChannels>1?input.getChannelData(1):left;
           const outL=output.getChannelData(0);
           const outR=output.numberOfChannels>1?output.getChannelData(1):outL;
-          const amount=Math.max(0,Math.min(1,vocalAmount));
+          const target=Math.max(0,Math.min(1,vocalAmount));
           for(let i=0;i<outL.length;i++){
-            const l=left[i],r=right[i];
-            const mid=(l+r)*0.5;
-            const side=(l-r)*0.5;
-            outL[i]=side+mid*(1-amount);
-            outR[i]=-side+mid*(1-amount);
+            const l=left[i],r=right[i],mid=(l+r)*0.5;
+            const highMid=b0*mid+b1*x1+b2*x2-a1*y1-a2*y2;
+            x2=x1;x1=mid;y2=y1;y1=highMid;
+            vocalSmooth+=(target-vocalSmooth)*0.002;
+            const reduction=vocalSmooth*highMid;
+            outL[i]=l-reduction;
+            outR[i]=r-reduction;
           }
         };
         vocalSource.connect(vocalProcessor);
