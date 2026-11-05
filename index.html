@@ -4116,7 +4116,17 @@ init();
   const player = $mb('player');
   if (player) {
     const dock = document.createElement('div'); dock.className = 'mb-player-dock'; dock.id = 'mbPlayerDock';
-    dock.append(player); mainCol.append(dock);
+    dock.append(player);
+    // Desktop: the full player lives in the right sidebar. Mobile: keep the compact dock above bottom navigation.
+    const placePlayerDock = () => {
+      if (window.matchMedia('(min-width: 821px)').matches) {
+        side.insertBefore(dock, side.querySelector('.mb-sidebar-foot'));
+      } else {
+        mainCol.append(dock);
+      }
+    };
+    placePlayerDock();
+    window.addEventListener('resize', placePlayerDock, {passive:true});
   }
   if (foot) mainCol.append(foot);
 
@@ -6688,6 +6698,20 @@ init();
 .mb-ai-vocal-button{display:block;width:100%;margin:8px 0 2px;padding:10px 12px;border:1px solid rgba(200,255,112,.3);border-radius:11px;background:linear-gradient(120deg,rgba(200,255,112,.13),rgba(200,255,112,.045));color:#dfffaa;font-weight:800;font-size:11px;letter-spacing:.1px;cursor:pointer;transition:background .2s,border-color .2s}
 .mb-ai-vocal-button:hover:not(:disabled){background:rgba(200,255,112,.2);border-color:rgba(200,255,112,.55)}
 .mb-ai-vocal-button:disabled{opacity:.75;cursor:wait}
+</style>
+\n
+<style id="mbRightSidebarPlayerPlacementFix">
+@media(min-width:821px){
+  .mb-sidebar{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:10px!important}
+  .mb-sidebar>#mbPlayerDock{order:1!important;flex:0 0 auto!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:10px 0 8px!important;position:relative!important;inset:auto!important;transform:none!important}
+  .mb-sidebar>#mbPlayerDock #player{width:100%!important;max-width:100%!important}
+  .mb-sidebar>#mbPlayerDock #pCov{width:min(100%,204px)!important}
+  .mb-sidebar>#mbPlayerDock .mb-mini-lyrics-copy{padding-inline:2px}
+}
+@media(max-width:820px){
+  .mb-sidebar>#mbPlayerDock{display:none!important}
+  .mb-main-col>#mbPlayerDock{display:block!important}
+}
 </style>
 \n</body>
 </html>
