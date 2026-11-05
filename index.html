@@ -1762,6 +1762,20 @@ function stopPreview() {
   try { prev.g.disconnect(); } catch (e) {}
   prev = null;
 }
+function seekPreview(k,delta) {
+  const d=decks[k]; if(!d.buf)return;
+  const wasPlaying=!!(prev&&prev.k===k);
+  let at=+$('cue'+k).value||0, loopBars=0;
+  if(wasPlaying){
+    const c=audioCtx();
+    at=prev.offset+Math.max(0,c.currentTime-prev.startedAt)*prev.rate;
+    loopBars=prev.loopBars||0;
+  }
+  at=clamp(at+delta,0,Math.max(0,d.buf.duration-0.02));
+  $('cue'+k).value=at;
+  $('cueV'+k).textContent=fmt(at);
+  if(wasPlaying){stopPreview();previewDeck(k,at,loopBars);}
+}
 function previewDeck(k, startAtOverride=null, loopBars=0) {
   if (prev && prev.k === k && startAtOverride === null && !loopBars) { stopPreview(); return; }
   stopPreview();
@@ -1771,6 +1785,7 @@ function previewDeck(k, startAtOverride=null, loopBars=0) {
   const g = c.createGain();
   g.gain.value = (+$('gain' + k).value / 100) * (+$('master').value / 100);
   const s = c.createBufferSource(); s.buffer = d.buf;
+  const rate=clamp(1+(Number(d.pitch)||0)/100,0.5,1.5); s.playbackRate.value=rate;
   const offset=clamp(startAtOverride==null?(+$('cue'+k).value||0):(+startAtOverride||0),0,Math.max(0,d.buf.duration-0.01));
   if(loopBars>0){
     const beat=60/(getBpm(k)||120), loopLength=beat*4*loopBars;
@@ -1781,7 +1796,7 @@ function previewDeck(k, startAtOverride=null, loopBars=0) {
   s.connect(g); g.connect(c.destination);
   s.start(0, offset);
   s.onended = () => { if (prev && prev.src === s) { prev = null; const b = $('btnPrev' + k); if (b) b.classList.remove('primary'); } };
-  prev = { src: s, g, k, offset, loopBars:loopBars||0, startedAt:c.currentTime };
+  prev = { src: s, g, k, offset, loopBars:loopBars||0, startedAt:c.currentTime, rate };
   $('btnPrev' + k).classList.add('primary');
 }
 
@@ -1797,7 +1812,7 @@ function swapDecks() {
     const tmp = ea.textContent; ea.textContent = eb.textContent; eb.textContent = tmp;
   });
   [1,2,3,4].forEach(n=>{const a=$('hotCueA'+n),b=$('hotCueB'+n);if(a&&b){const v=a.value;a.value=b.value;b.value=v;const pa=$('deckA').querySelector(`[data-hotcue-play="A"][data-hotcue-index="${n}"]`),pb=$('deckB').querySelector(`[data-hotcue-play="B"][data-hotcue-index="${n}"]`);if(pa)pa.disabled=a.value==='';if(pb)pb.disabled=b.value==='';}});
-  ['bpm', 'gain', 'low', 'high'].forEach(p => {
+  ['bpm', 'gain', 'low', 'high', 'pitch'].forEach(p => {
     const ea = $(p + 'A'), eb = $(p + 'B');
     const tmp = ea.value; ea.value = eb.value; eb.value = tmp;
   });
@@ -1806,6 +1821,7 @@ function swapDecks() {
     $('gainV' + k).textContent = $('gain' + k).value;
     $('lowV' + k).textContent = $('low' + k).value;
     $('highV' + k).textContent = $('high' + k).value;
+    $('pitchV' + k).textContent=(Number($('pitch'+k).value)>0?'+':'')+Number($('pitch'+k).value||0).toFixed(1)+'%';
     if (d.buf) $('cue' + k).max = Math.floor(d.buf.duration);
   });
   // نقاط: شروع گذارِ B قبلی → شروع گذار A جدید؛ شروع گذار A قبلی → نقطه‌ی ورود B جدید
@@ -2527,6 +2543,11 @@ function buildDeck(k) {
     </div>
     <div class="bpm"><span data-i18n="manualBpm"></span> <input type="number" id="bpm${k}" min="50" max="220" step="0.1" data-i18n-ph="autoBpm"></div>
     <div class="row-btns" style="margin-top:10px"><button id="btnPrev${k}">🎧 <span data-i18n="preview"></span></button><button id="btnDeckPl${k}" type="button" disabled>＋ <span data-i18n="deckToPlaylist"></span></button></div>
+    <div class="mb-deck-performance">
+      <div class="mb-jog-row"><span class="mb-jog-label">JOG</span><button type="button" data-jog-seek="${k}" data-seconds="-1">−1s</button><button type="button" data-jog-seek="${k}" data-seconds="-0.1">−0.1</button><button type="button" data-jog-seek="${k}" data-seconds="0.1">+0.1</button><button type="button" data-jog-seek="${k}" data-seconds="1">+1s</button></div>
+      <label class="mb-pitch-label"><span>Pitch</span><output id="pitchV${k}">0.0%</output></label>
+      <input class="mb-pitch-range" type="range" id="pitch${k}" min="-8" max="8" step="0.1" value="0" aria-label="Pitch adjustment">
+    </div>
     <canvas class="ov" id="ov${k}"></canvas>
     <div class="mb-hotcues"><div class="mb-hotcues-title" data-i18n="hotCueTitle"></div><div class="mb-hotcues-grid">${[1,2,3,4].map(n=>`<div class="mb-hotcue"><input type="hidden" id="hotCue${k}${n}" value=""><button type="button" class="mb-hotcue-set" data-hotcue-set="${k}" data-hotcue-index="${n}" data-i18n="hotCueSet"></button><button type="button" class="mb-hotcue-play" data-hotcue-play="${k}" data-hotcue-index="${n}" disabled aria-label="Hot cue ${n} play">${n} ▶</button></div>`).join('')}</div><div class="mb-loop-row"><button type="button" data-loop="${k}" data-bars="1" data-i18n="loopOne"></button><button type="button" data-loop="${k}" data-bars="4" data-i18n="loopFour"></button></div></div>
     <label><span data-i18n="${isA ? 'cueOut' : 'cueIn'}"></span>: <b id="cueV${k}">0</b> <span data-i18n="secUnit"></span></label>
@@ -2556,6 +2577,18 @@ function buildDeck(k) {
   $('deck' + k).querySelectorAll('[data-loop]').forEach(btn => btn.addEventListener('click', () => {
     if(!decks[k].buf){toast(t('loadFirst'));return;} previewDeck(k,+$('cue'+k).value||0,+btn.dataset.bars||1);
   }));
+  $('deck' + k).querySelectorAll('[data-jog-seek]').forEach(btn => btn.addEventListener('click', () => {
+    seekPreview(k,Number(btn.dataset.seconds)||0);
+  }));
+  $('pitch' + k).addEventListener('input', () => {
+    const value=clamp(Number($('pitch'+k).value)||0,-8,8);
+    decks[k].pitch=value;
+    $('pitchV'+k).textContent=(value>0?'+':'')+value.toFixed(1)+'%';
+    if(prev&&prev.k===k){
+      const rate=1+value/100;
+      try{prev.src.playbackRate.setTargetAtTime(rate,audioCtx().currentTime,0.018);prev.rate=rate;}catch(_){}
+    }
+  });
   $('btnDeckPl' + k).onclick = async e => {
     const rec = await ensureDeckLibraryTrack(k);
     if (rec) openPlMenu(e.currentTarget, rec.id);
@@ -2656,7 +2689,8 @@ async function loadDeck(k, file, libraryId = null, preserveEditableSession = fal
     await wait(30);
     const an = analyze(buf, +$('bpm' + k).value || 0);
     const matched = libraryId || findLibraryTrackId(file);
-    decks[k] = { buf, name: file.name, file, libraryId: matched, an, ov: overview(buf), key: detectKey(buf) };
+    decks[k] = { buf, name: file.name, file, libraryId: matched, an, ov: overview(buf), key: detectKey(buf), pitch:0 };
+    $('pitch'+k).value=0; $('pitchV'+k).textContent='0.0%';
     if (!preserveEditableSession) { activeEditableSessionId = null; rememberActiveSession(null); updateSessionButton(); }
     dbFilesTx(s => s.put({ file, libraryId: matched || null }, 'deck:' + k)).catch(() => {});
     const deckPlButton = $('btnDeckPl' + k); if (deckPlButton) deckPlButton.disabled = false;
@@ -6520,5 +6554,17 @@ init();
 }
 @media(prefers-reduced-motion:reduce){.mb-layout-overlay,.mb-layout-panel{scroll-behavior:auto}}
 </style>
+
+<style id="mbDJPerformanceControls">
+.mb-deck-performance{margin:10px 0 12px;padding:11px 12px;border:1px solid rgba(255,255,255,.075);border-radius:13px;background:rgba(8,13,10,.32)}
+.mb-jog-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mb-jog-label{font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--accent);margin-inline-end:auto}
+.mb-jog-row button{min-width:0;flex:1;padding:7px 5px;font-size:10px;border-radius:8px;background:#202a24;border:1px solid rgba(255,255,255,.07)}
+.mb-pitch-label{display:flex;justify-content:space-between;align-items:center;margin:11px 0 4px;font-size:11px;color:var(--muted)}
+.mb-pitch-label output{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:800}
+.mb-pitch-range{display:block;width:100%;margin:0;accent-color:var(--accent);cursor:pointer;touch-action:pan-x}
+@media(max-width:520px){.mb-jog-row{gap:4px}.mb-jog-row button{font-size:9px;padding:8px 2px}}
+</style>
+
 </body>
 </html>
