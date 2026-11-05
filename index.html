@@ -6148,7 +6148,7 @@ init();
 
   const mini=document.createElement('div');
   mini.className='mb-mini-lyrics';
-  mini.innerHTML='<div class="mb-mini-lyrics-copy"><small>NOW PLAYING · LYRICS</small><b id="mbMiniLyricCurrent">برای نمایش متن، یک آهنگ پخش کن</b><em id="mbMiniLyricNext">متن هماهنگ با پخش در این قسمت نمایش داده می‌شود</em></div><button type="button" id="mbMiniLyricsToggle" aria-label="نمایش متن آهنگ" aria-expanded="false" title="Lyrics">♫</button>';
+  mini.innerHTML='<div class="mb-mini-lyrics-copy"><small>NOW PLAYING · LYRICS</small><em class="mb-mini-lyric-before" id="mbMiniLyricBefore">—</em><b id="mbMiniLyricCurrent">برای نمایش متن، یک آهنگ پخش کن</b><em class="mb-mini-lyric-next" id="mbMiniLyricNext">متن هماهنگ با پخش در این قسمت نمایش داده می‌شود</em></div><button type="button" id="mbMiniLyricsToggle" aria-label="نمایش متن آهنگ" aria-expanded="false" title="Lyrics">♫</button>';
   player.append(mini);
   const panel=document.createElement('section');
   panel.className='mb-mini-lyrics-panel';panel.id='mbMiniLyricsPanel';
@@ -6173,8 +6173,9 @@ init();
       return library.find(x=>String(x.id)===String(plCur))||null;
     }catch(_){return null;}
   }
-  function setPreview(current,next){
-    const a=$('mbMiniLyricCurrent'),b=$('mbMiniLyricNext');
+  function setPreview(before,current,next){
+    const p=$('mbMiniLyricBefore'),a=$('mbMiniLyricCurrent'),b=$('mbMiniLyricNext');
+    if(p)p.textContent=before||'—';
     if(a)a.textContent=current||fallback();
     if(b)b.textContent=next|| (fa()?'متن هماهنگ با پخش':'Synced lyrics');
   }
@@ -6190,7 +6191,7 @@ init();
   }
   function update(){
     const it=getTrack();
-    if(!it){lastTrack=null;lastRaw=null;parsed=[];setPreview(fallback(),'');if(list)list.innerHTML='<div class="mb-mini-lyrics-empty">'+fallback()+'</div>';return;}
+    if(!it){lastTrack=null;lastRaw=null;parsed=[];setPreview('—',fallback(),'');if(list)list.innerHTML='<div class="mb-mini-lyrics-empty">'+fallback()+'</div>';return;}
     const record=it.lyrics||{};
     const chosen=record.manual&&(record.manual.syncedLyrics||record.manual.plainLyrics)?record.manual:record;
     const raw=chosen.syncedLyrics||chosen.plainLyrics||'';
@@ -6203,16 +6204,16 @@ init();
     }
     if(!raw){
       const status=record.lookupStatus==='loading'? (fa()?'در حال دریافت متن آهنگ…':'Finding lyrics…') : (fa()?'برای دریافت متن، پلیر کامل را باز کن':'Open the full player to find or add lyrics');
-      setPreview(status,fa()?'♫ متن آهنگ':'♫ Lyrics');return;
+      setPreview('—',status,fa()?'♫ متن آهنگ':'♫ Lyrics');return;
     }
     if(!synced){
-      setPreview(parsed[0]?.text||raw.split(/\r?\n/)[0]||'♫',parsed[1]?.text|| (fa()?'متن بدون زمان‌بندی':'Plain lyrics'));
+      setPreview(parsed[0]?.text||'—',parsed[1]?.text||raw.split(/\r?\n/)[0]||'♫',parsed[2]?.text|| (fa()?'متن بدون زمان‌بندی':'Plain lyrics'));
       return;
     }
     const now=typeof au!=='undefined'?Number(au.currentTime)||0:0;
     let idx=-1;for(let i=0;i<parsed.length;i++){if(parsed[i].time<=now)idx=i;else break;}
     if(idx<0)idx=0;
-    setPreview(parsed[idx]?.text||'♫',parsed[idx+1]?.text|| (fa()?'ادامه متن آهنگ':'End of lyrics'));
+    setPreview(parsed[idx-1]?.text||'—',parsed[idx]?.text||'♫',parsed[idx+1]?.text|| (fa()?'ادامه متن آهنگ':'End of lyrics'));
     if(idx!==lastActive){
       if(list){
         list.querySelectorAll('.mb-mini-lyrics-line').forEach((node,i)=>node.classList.toggle('active',i===idx));
@@ -6566,5 +6567,32 @@ init();
 @media(max-width:520px){.mb-jog-row{gap:4px}.mb-jog-row button{font-size:9px;padding:8px 2px}}
 </style>
 
+<style id="mbSidebarNowPlayingRedesign">
+@media(min-width:821px){
+.mb-sidebar{overflow-y:auto!important;overflow-x:hidden!important;scrollbar-width:thin;scrollbar-color:rgba(182,243,107,.18) transparent}
+.mb-sidebar>.mb-player-dock{margin:16px 0 12px!important;width:100%!important}
+.mb-sidebar>.mb-player-dock #player{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto auto auto auto auto!important;gap:9px!important;width:100%!important;padding:13px!important;border-radius:19px!important;background:linear-gradient(155deg,rgba(31,43,35,.96),rgba(15,21,17,.98))!important;border:1px solid rgba(182,243,107,.13)!important;box-shadow:0 18px 45px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.04)!important}
+.mb-sidebar>.mb-player-dock #player #pCov{grid-column:1!important;grid-row:1!important;justify-self:center!important;width:min(100%,190px)!important;height:auto!important;aspect-ratio:1!important;border-radius:15px!important;box-shadow:0 12px 28px rgba(0,0,0,.35)!important;cursor:pointer}
+.mb-sidebar>.mb-player-dock #player .pinfo{grid-column:1!important;grid-row:2!important;display:flex!important;flex-direction:column!important;align-items:center!important;text-align:center!important;min-width:0!important;gap:3px!important;padding:1px 4px!important}
+.mb-sidebar>.mb-player-dock #player .pinfo b{font-size:13px!important;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-sidebar>.mb-player-dock #player .pinfo small{font-size:10px!important;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-sidebar>.mb-player-dock #player .pctl{grid-column:1!important;grid-row:3!important;justify-content:center!important;gap:5px!important}
+.mb-sidebar>.mb-player-dock #player .pctl button{width:32px!important;height:32px!important;min-width:32px!important;padding:0!important}
+.mb-sidebar>.mb-player-dock #player .pctl #pPlay{width:41px!important;height:41px!important;min-width:41px!important}
+.mb-sidebar>.mb-player-dock #player .pseek{grid-column:1!important;grid-row:4!important;min-width:0!important;gap:5px!important}
+.mb-sidebar>.mb-player-dock #player .pseek small{font-size:9px!important}
+.mb-sidebar>.mb-player-dock #player .pvol{grid-column:1!important;grid-row:5!important;display:flex!important;align-items:center!important;gap:8px!important}
+.mb-sidebar>.mb-player-dock #player .pvol input{flex:1!important;min-width:0!important;width:auto!important}
+.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics{grid-column:1!important;grid-row:6!important;display:block!important;padding:10px 3px 1px!important;border-top:1px solid rgba(255,255,255,.07)!important;min-width:0!important}
+.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy{display:grid!important;grid-template-columns:1fr!important;gap:5px!important;text-align:center!important}
+.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy small{font-size:9px!important;letter-spacing:1.5px!important;color:#7d9182!important}
+.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy em,.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy b{display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-style:normal!important;line-height:1.7!important}
+.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy .mb-mini-lyric-before,.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy .mb-mini-lyric-next{font-size:10px!important;color:#839187!important;opacity:.7}
+.mb-sidebar>.mb-player-dock #player .mb-mini-lyrics-copy #mbMiniLyricCurrent{font-size:12px!important;font-weight:900!important;color:#dff8cb!important;white-space:normal!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important}
+.mb-sidebar>.mb-player-dock #player #mbMiniLyricsToggle{margin-top:5px!important;width:100%!important;height:24px!important;font-size:11px!important}
+.mb-sidebar>.mb-player-dock .mb-mini-lyrics-panel{right:0!important;left:0!important;top:auto!important;bottom:calc(100% + 10px)!important}
+}
+@media(max-width:820px){.mb-mini-lyric-before{display:none!important}}
+</style>
 </body>
 </html>
