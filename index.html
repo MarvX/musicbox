@@ -6328,6 +6328,89 @@ init();
     }
     vocalSlider.addEventListener('input',updateVocalAmount);
     vocalSlider.addEventListener('change',updateVocalAmount);
+
+    /* AI Vocal Separation: browser-local ONNX inference, no audio upload. */
+    const aiButton=document.createElement('button');
+    aiButton.type='button';
+    aiButton.id='mbAiVocalSeparate';
+    aiButton.className='mb-ai-vocal-button';
+    aiButton.textContent=fa()?'✦ حذف وکال با هوش مصنوعی':'✦ AI Vocal Separation';
+    vocalControl.insertAdjacentElement('afterend',aiButton);
+    let aiModulePromise=null,aiSeparator=null,aiBusy=false;
+    const aiResults=new Map();
+    function aiLabel(text){aiButton.textContent=text;}
+    function restoreAudioSource(url,time,wasPlaying){
+      const safeTime=Math.max(0,Number(time)||0);
+      au.pause();
+      au.src=url;
+      au.load();
+      const seekAndResume=()=>{
+        au.removeEventListener('loadedmetadata',seekAndResume);
+        try{if(Number.isFinite(au.duration))au.currentTime=Math.min(safeTime,Math.max(0,au.duration-.05));}catch(_){}
+        if(wasPlaying)au.play().catch(()=>{});
+      };
+      au.addEventListener('loadedmetadata',seekAndResume,{once:true});
+      if(au.readyState>=1)seekAndResume();
+    }
+    aiButton.addEventListener('click',async()=>{
+      if(aiBusy)return;
+      const track=library.find(x=>String(x.id)===String(plCur));
+      if(!track||!track.file){toast(fa()?'اول یک آهنگ از کتابخانه پخش کن':'Play a library track first');return;}
+      const trackKey=String(track.id),cached=aiResults.get(trackKey);
+      if(cached){
+        const useOriginal=au.src===cached;
+        const time=au.currentTime,wasPlaying=!au.paused;
+        restoreAudioSource(useOriginal?plUrl:cached,time,wasPlaying);
+        aiLabel(useOriginal?(fa()?'✦ پخش نسخه بی‌کلام':'✦ Play instrumental'):(fa()?'↶ بازگشت به نسخه اصلی':'↶ Original track'));
+        return;
+      }
+      aiBusy=true;aiButton.disabled=true;
+      const originalTime=au.currentTime,wasPlaying=!au.paused;
+      const originalUrl=plUrl;
+      let inputUrl=null;
+      try{
+        au.pause();
+        aiLabel(fa()?'در حال آماده‌سازی مدل…':'Preparing AI model…');
+        if(!aiModulePromise)aiModulePromise=import('https://esm.sh/web-audio-separation@0.3.1?bundle');
+        const module=await aiModulePromise;
+        if(!aiSeparator){
+          aiSeparator=module.createSeparator('UVR-MDX-NET-Voc_FT',{
+            common:{logLevel:'warning',onProgress:progress=>{
+              const pct=Math.round(Math.max(0,Math.min(1,progress.fraction||0))*100);
+              const stage=progress.stage==='loading-model'?(fa()?'دانلود/بارگذاری مدل':'Loading model'):progress.stage==='demixing'?(fa()?'جداسازی هوشمند':'Separating audio'):(fa()?'ساخت خروجی':'Writing output');
+              aiLabel(stage+' '+pct+'%');
+            }},
+            mdx:{executionProviders:['webgpu','wasm'],batchSize:1}
+          });
+          await aiSeparator.loadModel();
+        }
+        inputUrl=URL.createObjectURL(track.file);
+        aiLabel(fa()?'در حال جداسازی آهنگ…':'Separating track…');
+        const stems=await aiSeparator.separate(inputUrl);
+        if(!stems||!stems.length)throw new Error('The model returned no audio stems');
+        /* Voc_FT uses vocals as primary; the separator returns secondary (instrumental) first. */
+        const instrumentalUrl=stems[0];
+        aiResults.set(trackKey,instrumentalUrl);
+        if(String(plCur)===trackKey&&plUrl===originalUrl){
+          vocalAmount=0;vocalSmooth=0;vocalSlider.value='0';vocalValue.textContent='0%';
+          restoreAudioSource(instrumentalUrl,originalTime,wasPlaying);
+          aiLabel(fa()?'↶ بازگشت به نسخه اصلی':'↶ Original track');
+          toast(fa()?'نسخه بی‌کلام آماده شد':'Instrumental version is ready');
+        }else{
+          aiLabel(fa()?'✦ پخش نسخه بی‌کلام':'✦ Play instrumental');
+          toast(fa()?'جداسازی تمام شد؛ آهنگ فعلی تغییر کرده است':'Separation finished; the current track has changed');
+        }
+      }catch(error){
+        console.error('AI Vocal Separation:',error);
+        aiLabel(fa()?'✦ تلاش دوباره برای جداسازی':'✦ Retry AI separation');
+        toast((fa()?'خطا در جداسازی هوشمند: ':'AI separation failed: ')+(error?.message||String(error)));
+        if(String(plCur)===trackKey&&plUrl===originalUrl)restoreAudioSource(originalUrl,originalTime,wasPlaying);
+      }finally{
+        if(inputUrl)URL.revokeObjectURL(inputUrl);
+        aiBusy=false;aiButton.disabled=false;
+      }
+    });
+
     karaoke.addEventListener('click',()=>{
       const active=drawer.classList.toggle('mb-karaoke-mode');
       karaoke.setAttribute('aria-pressed',String(active));
@@ -6600,5 +6683,11 @@ init();
 }
 @media(max-width:820px){.mb-mini-lyric-before{display:none!important}}
 </style>
-</body>
+
+<style id="mbAiVocalSeparation">
+.mb-ai-vocal-button{display:block;width:100%;margin:8px 0 2px;padding:10px 12px;border:1px solid rgba(200,255,112,.3);border-radius:11px;background:linear-gradient(120deg,rgba(200,255,112,.13),rgba(200,255,112,.045));color:#dfffaa;font-weight:800;font-size:11px;letter-spacing:.1px;cursor:pointer;transition:background .2s,border-color .2s}
+.mb-ai-vocal-button:hover:not(:disabled){background:rgba(200,255,112,.2);border-color:rgba(200,255,112,.55)}
+.mb-ai-vocal-button:disabled{opacity:.75;cursor:wait}
+</style>
+\n</body>
 </html>
